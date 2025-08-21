@@ -257,28 +257,12 @@ async function apiFetch(path, opts={}, timeoutMs=20000){
 
     
     function renderHealth(health){
-      if (!Array.isArray(health) || !health.length){ return '—'; }
-      return '<ul class="space-y-1">' +
-        health.map(h => {
-          const sev = String(h.severity||'').toLowerCase();
-          const name = h.name || '—';
-          const status = (sev==='confirmada') ? 'Confirmada' : (sev==='alerta' ? 'Alerta' : 'Descartado');
-          const icon = (sev==='confirmada') ? '🛑' : (sev==='alerta' ? '⚠️' : '✓');
-          return '<li class="flex items-start"><span class="mr-2">' + icon + '</span><span><span class="font-medium">' + name + '</span> = ' + status + '</span></li>';
-        }).join('') + '</ul>';
+  if (!Array.isArray(health) || !health.length){ return '—'; }
+
+}
+
     }
 
-          return `<ul class="space-y-1">` +
-        health.map(h => {
-          const sev = String(h.severity||'').toLowerCase();
-          const name = h.name || '—';
-          const status = (sev==='confirmada') ? 'Confirmada' : (sev==='alerta' ? 'Alerta' : 'Descartado');
-          const icon = (sev==='confirmada') ? '🛑' : (sev==='alerta' ? '⚠️' : '✓');
-          const cls = (sev==='confirmada') ? 'text-red-700' : (sev==='alerta' ? 'text-amber-700' : 'text-green-700');
-          const conf = (h.confidence!=null) ? ' <span class="text-gray-500">· conf=' + Number(h.confidence).toFixed(2) + '</span>' : '';
-          const notes = h.notes ? ' <span class="text-gray-600">· ' + h.notes + '</span>' : '';
-          return '<li class="flex items-start ' + cls + '"><span class="mr-2">' + icon + '</span><span><span class="font-medium">' + name + '</span> = ' + status + conf + notes + '</span></li>';
-        }).join('') + `</ul>`;
     }
 
     
