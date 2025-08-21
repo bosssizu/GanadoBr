@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>GanadoBravo v9d — Evaluación</title>
+  <title>GanadoBravo — Evaluación</title>
   <meta name="theme-color" content="#0B1220"/>
+  <meta name="api-base" content="">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     :root{ color-scheme: light; }
@@ -16,20 +17,16 @@
     .pill-red{ background:#feeaea; color:#9b1c1c; }
     .sticky-cta{ position:sticky; bottom:0; background:linear-gradient(180deg, rgba(246,248,251,.0), rgba(246,248,251,1) 30%); padding-top:.5rem; }
   </style>
-  <meta name="api-base" content="">
-  <meta name="api-base" content="">
 </head>
 <body class="min-h-screen">
   <header class="bg-white/90 backdrop-blur border-b border-gray-200 sticky top-0 z-50">
     <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
       <h1 class="text-lg md:text-2xl font-bold tracking-tight text-gray-900">GanadoBravo — Evaluación</h1>
       <div id="err" class="text-sm text-red-600 font-medium"></div>
-<div id="netErr" class="hidden mt-2 p-3 rounded-lg bg-red-50 text-red-700 text-sm"></div>
     </div>
   </header>
 
   <main class="max-w-7xl mx-auto px-4 py-4 md:py-8 grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-    <!-- Columna izquierda: Controles + Vista previa -->
     <section class="space-y-4 lg:col-span-1">
       <div class="card p-4 md:p-5">
         <h2 class="text-base font-semibold text-gray-900 mb-3">Entrada</h2>
@@ -53,6 +50,7 @@
             Evaluar
           </button>
           <p id="meta" class="mt-2 text-xs text-gray-500 text-center">—</p>
+          <div id="netErr" class="hidden mt-2 p-3 rounded-lg bg-red-50 text-red-700 text-sm"></div>
         </div>
       </div>
 
@@ -69,9 +67,7 @@
       </div>
     </section>
 
-    <!-- Columna derecha: Resultados -->
     <section class="lg:col-span-2 space-y-4">
-      <!-- Estado QC -->
       <div class="card p-4 md:p-5">
         <div class="flex flex-wrap items-center gap-2 text-sm">
           <span class="text-gray-500">Calidad de entrada:</span>
@@ -81,19 +77,15 @@
         <div id="visBox" class="mt-3 text-sm text-gray-700"></div>
       </div>
 
-      <!-- Decisión + barras -->
       <div class="card p-4 md:p-5">
         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
           <h2 class="text-xl font-semibold text-gray-900">Resultado</h2>
           <div class="text-sm text-gray-600">Presentación optimizada para móviles</div>
         </div>
         <div class="mb-3" id="decisionStrip"></div>
-        <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4" id="scoreCards">
-          <!-- tarjetas de puntaje renderizadas por JS -->
-        </div>
+        <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4" id="scoreCards"></div>
       </div>
 
-      <!-- Rúbrica (siempre visible) -->
       <div id="rubricCard" class="card p-3 md:p-5">
         <div class="flex items-center justify-between gap-2">
           <h3 class="font-semibold text-gray-900">Rúbrica detallada</h3>
@@ -113,13 +105,11 @@
         </div>
       </div>
 
-      <!-- Salud -->
       <div class="card p-4 md:p-5">
         <h3 class="font-semibold text-gray-900">Salud</h3>
         <div id="healthBox" class="mt-2 text-sm text-gray-800"></div>
       </div>
 
-      <!-- Raza -->
       <div class="card p-4 md:p-5">
         <h3 class="font-semibold text-gray-900">Raza</h3>
         <div id="breedBox" class="mt-2 text-sm text-gray-800"></div>
@@ -128,230 +118,208 @@
   </main>
 
   <script>
-    // === GanadoBravo boot hooks ===
-(function(){
-  function ensureErrBox(){ 
-    var b=document.getElementById('netErr'); 
-    if(!b){ 
-      var x=document.createElement('div'); 
-      x.id='netErr'; 
-      x.className='mt-2 p-3 rounded-lg bg-red-50 text-red-700 text-sm'; 
-      document.body.prepend(x);
-      b=x;
-    } 
-    return b; 
+  function htmlSet(id, html){ var el=document.getElementById(id); if(el) el.innerHTML=html; }
+  function safeSet(id, txt){ var el=document.getElementById(id); if(el) el.textContent=txt; }
+
+  function pillClass(dec){
+    var d = String(dec||'').toUpperCase();
+    if (d.startsWith('COMPRAR')) return 'pill pill-green';
+    if (d.startsWith('CONSIDERAR')) return 'pill pill-amber';
+    return 'pill pill-red';
   }
-  function show(msg){ 
+  function barClass(dec){
+    var d = String(dec||'').toUpperCase();
+    if (d.startsWith('COMPRAR')) return 'bg-green-600';
+    if (d.startsWith('CONSIDERAR')) return 'bg-amber-600';
+    return 'bg-red-600';
+  }
+
+  function renderDecisionStrip(d){
+    var level = String(d.decision_level||d.decision||'').toUpperCase();
+    var cats = [
+      {key:'NO_COMPRAR',        label:'No comprar'},
+      {key:'CONSIDERAR_BAJO',   label:'Considerar (bajo)'},
+      {key:'CONSIDERAR_ALTO',   label:'Considerar (alto)'},
+      {key:'COMPRAR',           label:'Comprar'}
+    ];
+    var items = cats.map(function(c){
+      var active = (level===c.key);
+      var cls = active ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-800';
+      return '<div class="px-3 py-2 rounded-lg text-xs font-medium '+cls+'">'+c.label+'</div>';
+    }).join('');
+    return '<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">'+items+'</div>';
+  }
+
+  function renderScorecards(d){
+    var items = [
+      { key:'decision_text',    label:'Decisión' },
+      { key:'global_score',     label:'Puntaje global' },
+      { key:'bcs',              label:'BCS' },
+      { key:'risk',             label:'Riesgo' },
+      { key:'posterior_bonus',  label:'Bono posterior' },
+      { key:'notes',            label:'Notas' }
+    ];
+    var cards = items.map(function(it){
+      var val = d[it.key];
+      if (val==null || val==='') return '';
+      if (it.key==='decision_text'){
+        return '<div class="card p-4">'
+          + '<div class="text-sm text-gray-500">'+it.label+'</div>'
+          + '<div class="mt-1 flex items-center gap-2"><span class="'+pillClass(val)+'">'+val+'</span></div>'
+          + '<div class="mt-3 w-full h-2 rounded-full bg-gray-100 overflow-hidden"><div class="h-full '+barClass(val)+'" style="width:'+Math.min(100, Math.max(0, Number(d.global_score||0)*10))+'%"></div></div>'
+          + '</div>';
+      }
+      return '<div class="card p-4">'
+        + '<div class="text-sm text-gray-500">'+it.label+'</div>'
+        + '<div class="mt-1 text-lg font-semibold text-gray-900">'+(typeof val==='number'? Number(val).toFixed(2) : val)+'</div>'
+        + '</div>';
+    }).join('');
+    htmlSet('scoreCards', cards);
+  }
+
+  function renderBreed(b){
+    if (!b) return '—';
+    var name = b.name || b.best || '—';
+    var conf = (b.confidence!=null)? Number(b.confidence).toFixed(2) : (b.conf||null);
+    var extra = b.explanation || b.notes || '';
+    return '<div class="flex flex-col gap-1">'
+      + '<div><span class="font-semibold">'+name+'</span>'+(conf!=null? ' · conf='+conf : '')+'</div>'
+      + (extra? '<div class="text-sm text-gray-600">'+extra+'</div>' : '')
+      + '</div>';
+  }
+
+  function renderHealth(health){
+    if (!Array.isArray(health) || !health.length){ return '—'; }
+    return '<ul class="space-y-1">' + health.map(function(h){
+      var sev = String(h.severity||'').toLowerCase();
+      var name = h.name || '—';
+      var status = (sev==='confirmada') ? 'Confirmada' : (sev==='alerta' ? 'Alerta' : 'Descartado');
+      var icon = (sev==='confirmada') ? '🛑' : (sev==='alerta' ? '⚠️' : '✓');
+      return '<li class="flex items-start"><span class="mr-2">'+icon+'</span><span><span class="font-medium">'+name+'</span> = '+status+'</span></li>';
+    }).join('') + '</ul>';
+  }
+
+  function render(d){
+    var qc = d.qc||{};
+    safeSet('meta', 'modo='+(d.mode||'-')+' · conf='+Number(d.global_conf||0).toFixed(2)+' · nivel='+(d.decision_level||'-'));
+    if (qc.visible_ratio!=null){
+      safeSet('visBox', 'Porción visible: '+Math.round((qc.visible_ratio*100))+'%'+(qc.auction_mode?' · modo subasta':''));
+    }
+    var stab = (qc.stability || qc.input_quality || '—');
+    var auction = (qc.auction_mode ? 'Subasta' : 'Normal');
+    var sp = document.getElementById('stabPill'); if (sp){ sp.className = 'pill ' + (stab==='alta'?'pill-green':(stab==='media'?'pill-amber':'pill-red')); sp.textContent = 'Estabilidad: '+stab; }
+    var ap = document.getElementById('auctionPill'); if (ap){ ap.className = 'pill ' + (qc.auction_mode?'pill-amber':'pill-green'); ap.textContent = 'Modo: '+auction; }
+    htmlSet('decisionStrip', renderDecisionStrip(d));
+    renderScorecards(d);
+    var rub = (d.rubric || []).map(function(item){
+      var score = Number(item.score); if (!isFinite(score)) score = 0;
+      return '<tr><td class="py-2 pr-4 font-medium">'+(item.name||'-')+'</td><td class="py-2 pr-4">'+score.toFixed(1)+'</td><td class="py-2">'+(item.obs||'')+'</td></tr>';
+    }).join('');
+    htmlSet('rubricTbl', rub);
+    var r = (d.reasons || []).map(function(t){ return '<li>'+t+'</li>'; }).join('');
+    htmlSet('reasons', r);
+    htmlSet('healthBox', renderHealth(d.health));
+    htmlSet('breedBox', renderBreed(d.breed || d.breed_ai || d.breeds));
+  }
+
+  function getApiBase(){
+    var m=document.querySelector('meta[name="api-base"]');
+    var v = (m && m.content)? m.content.trim() : '';
+    if (!v) return '';
+    if (v.endsWith('/')) v = v.slice(0,-1);
+    return v;
+  }
+
+  function showNetErr(msg){
+    var box = document.getElementById('netErr');
+    if (!box) return;
+    box.classList.remove('hidden');
+    box.innerHTML = msg;
+    console.error('[GanadoBravo] ', msg);
+  }
+  function clearNetErr(){
+    var box = document.getElementById('netErr');
+    if (!box) return;
+    box.classList.add('hidden');
+    box.textContent = '';
+  }
+
+  async function apiFetch(path, opts, timeoutMs){
+    if (opts===undefined) opts = {};
+    if (timeoutMs===undefined) timeoutMs = 30000;
+    var base = getApiBase();
+    var url = (base? base : '') + path;
+    var ctrl = new AbortController();
+    var t = setTimeout(function(){ try{ ctrl.abort('timeout'); }catch(_){} }, timeoutMs);
+    var res, txt;
     try{
-      var b=ensureErrBox(); 
-      b.classList.remove('hidden'); 
-      b.innerHTML=msg; 
-    }catch(e){ try{ alert(String(msg)); }catch(_){} }
-    console.error('[GanadoBravo]', msg);
-  }
-  window.addEventListener('error', function(e){ show('JS error: ' + (e && (e.message||e.error) || 'unknown')); });
-  window.addEventListener('unhandledrejection', function(e){ show('Promise rejection: ' + (e && (e.reason && (e.reason.message||e.reason)) || 'unknown')); });
-  console.log('[GanadoBravo] UI booting…');
-})();
-
-let currentFile=null, lastPreviewSrc='';
-
-function getApiBase(){
-  const m=document.querySelector('meta[name="api-base"]');
-  return (m && m.content) ? m.content.trim().replace(/\/$/, '') : '';
-}
-
-function showNetErr(msg){
-  const box = document.getElementById('netErr');
-  if (!box) return;
-  box.classList.remove('hidden');
-  box.innerHTML = msg;
-  console.error('[GanadoBravo] ', msg);
-}
-
-function clearNetErr(){
-  const box = document.getElementById('netErr');
-  if (!box) return;
-  box.classList.add('hidden');
-  box.textContent = '';
-}
-
-async function apiFetch(path, opts={}, timeoutMs=20000){
-  const base = getApiBase();
-  const url = (base ? base : '') + path;
-  const ctrl = new AbortController();
-  const t = setTimeout(()=>ctrl.abort('timeout'), timeoutMs);
-  let res, txt;
-  try{
-    res = await fetch(url, { ...opts, signal: ctrl.signal });
-    txt = await res.text();
-  }catch(e){
+      res = await fetch(url, Object.assign({ signal: ctrl.signal }, opts));
+      txt = await res.text();
+    }catch(e){
+      clearTimeout(t);
+      showNetErr('Network error: ' + (e && e.message ? e.message : e));
+      throw e;
+    }
     clearTimeout(t);
-    throw new Error('Network error: ' + (e && e.message || e));
-  }
-  clearTimeout(t);
-  if (!res.ok){
-    throw new Error('HTTP ' + res.status + ' on ' + path + (txt? (': ' + txt.slice(0,300)) : ''));
-  }
-  return txt;
-}
-
-
-    function htmlSet(id, html){ const el=document.getElementById(id); if(el) el.innerHTML=html; }
-    function safeSet(id, txt){ const el=document.getElementById(id); if(el) el.textContent=txt; }
-
-    function pillClass(dec){
-      const d = String(dec||'').toUpperCase();
-      if (d.startsWith('COMPRAR')) return 'pill pill-green';
-      if (d.startsWith('CONSIDERAR')) return 'pill pill-amber';
-      return 'pill pill-red';
+    if (!res.ok){
+      showNetErr('HTTP ' + res.status + ' on ' + path + (txt? (': ' + txt.slice(0,300)) : ''));
+      throw new Error('HTTP ' + res.status);
     }
-    function barClass(dec){
-      const d = String(dec||'').toUpperCase();
-      if (d.startsWith('COMPRAR')) return 'bg-green-600';
-      if (d.startsWith('CONSIDERAR')) return 'bg-amber-600';
-      return 'bg-red-600';
-    }
+    return txt;
+  }
 
-    function renderScorecards(d){
-      const items = [
-        { key:'decision_text',    label:'Decisión' },
-        { key:'global_score',     label:'Puntaje global' },
-        { key:'bcs',              label:'BCS' },
-        { key:'risk',             label:'Riesgo' },
-        { key:'posterior_bonus',  label:'Bono posterior' },
-        { key:'notes',            label:'Notas' }
-      ];
-      const cards = items.map(it => {
-        const val = d[it.key];
-        if (val==null || val==='') return '';
-        if (it.key==='decision_text'){
-          return `<div class="card p-4">
-            <div class="text-sm text-gray-500">${it.label}</div>
-            <div class="mt-1 flex items-center gap-2">
-              <span class="${pillClass(val)}">${val}</span>
-            </div>
-            <div class="mt-3 w-full h-2 rounded-full bg-gray-100 overflow-hidden">
-              <div class="h-full ${barClass(val)}" style="width:${Math.min(100, Math.max(0, Number(d.global_score||0)*10))}%"></div>
-            </div>
-          </div>`;
+  document.addEventListener('DOMContentLoaded', function(){
+    console.log('[GanadoBravo] DOM ready');
+    var fileEl = document.getElementById('file');
+    var preview = document.getElementById('preview');
+    var btn = document.getElementById('evaluateBtn');
+    var err = document.getElementById('err');
+    var modeEl = document.getElementById('mode');
+
+    console.log('[GanadoBravo] evaluateBtn exists?', !!btn);
+
+    if (fileEl){
+      fileEl.addEventListener('change', function(ev){
+        window.currentFile = ev.target.files && ev.target.files[0] || null;
+        if (window.currentFile && preview){
+          var url = URL.createObjectURL(window.currentFile);
+          window.lastPreviewSrc = url;
+          preview.src = url;
+          preview.onload = function(){ try{ URL.revokeObjectURL(url); }catch(_){ } };
         }
-        return `<div class="card p-4">
-          <div class="text-sm text-gray-500">${it.label}</div>
-          <div class="mt-1 text-lg font-semibold text-gray-900">${(typeof val==='number')? Number(val).toFixed(2) : val}</div>
-        </div>`;
-      }).join('');
-      htmlSet('scoreCards', cards);
+      });
     }
 
-    function renderBreed(b){
-      if (!b) return '—';
-      const name = b.name || b.best || '—';
-      const conf = (b.confidence!=null)? Number(b.confidence).toFixed(2) : (b.conf||null);
-      const extra = b.explanation || b.notes || '';
-      return `<div class="flex flex-col gap-1">
-        <div><span class="font-semibold">${name}</span>${conf!=null? ' · conf='+conf : ''}</div>
-        ${extra? `<div class="text-sm text-gray-600">${extra}</div>` : ''}
-      </div>`;
-    }
-
-    
-    function renderHealth(health){
-  if (!Array.isArray(health) || !health.length){ return '—'; }
-
-}
-
-    }
-
-    }
-
-    
-function renderDecisionStrip(d){
-  const level = String(d.decision_level||d.decision||'').toUpperCase();
-  const cats = [
-    {key:'NO_COMPRAR',        label:'No comprar'},
-    {key:'CONSIDERAR_BAJO',   label:'Considerar (bajo)'},
-    {key:'CONSIDERAR_ALTO',   label:'Considerar (alto)'},
-    {key:'COMPRAR',           label:'Comprar'},
-  ];
-  const items = cats.map(c => {
-    const active = (level===c.key);
-    const cls = active ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-800';
-    return `<div class="px-3 py-2 rounded-lg text-xs font-medium ${cls}">${c.label}</div>`;
-  }).join('');
-  return `<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">${items}</div>`;
-}
-function render(d){
-        
-      const qc = d.qc||{};
-      safeSet('meta', `modo=${d.mode||'-'} · conf=${Number(d.global_conf||0).toFixed(2)} · nivel=${d.decision_level||'-'}`);
-
-      if (qc.visible_ratio!=null){
-        safeSet('visBox', `Porción visible: ${(qc.visible_ratio*100).toFixed(0)}%${qc.auction_mode?' · modo subasta':''}`);
-      }
-      const stab = (qc.stability || qc.input_quality || '—');
-      const auction = (qc.auction_mode ? 'Subasta' : 'Normal');
-      const sp = document.getElementById('stabPill'); if (sp){ sp.className = 'pill ' + (stab==='alta'?'pill-green':(stab==='media'?'pill-amber':'pill-red')); sp.textContent = 'Estabilidad: '+stab; }
-      const ap = document.getElementById('auctionPill'); if (ap){ ap.className = 'pill ' + (qc.auction_mode?'pill-amber':'pill-green'); ap.textContent = 'Modo: '+auction; }
-
-      htmlSet('decisionStrip', renderDecisionStrip(d));
-      renderScorecards(d);
-
-      const rub = (d.rubric || [])
-        .map(item => `<tr><td class="py-2 pr-4 font-medium">${item.name}</td><td class="py-2 pr-4">${Number(item.score).toFixed(1)}</td><td class="py-2">${item.obs||''}</td></tr>`)
-        .join('');
-      htmlSet('rubricTbl', rub);
-
-      const r = (d.reasons || []).map(t=>`<li>${t}</li>`).join('');
-      htmlSet('reasons', r);
-
-      htmlSet('healthBox', renderHealth(d.health));
-      htmlSet('breedBox', renderBreed(d.breed || d.breed_ai || d.breeds));
-    }
-
-    document.addEventListener('DOMContentLoaded', () => { console.log('[GanadoBravo] DOM ready');
-      const fileEl = document.getElementById('file');
-      const preview = document.getElementById('preview');
-      const btn = document.getElementById('evaluateBtn');
-      const err = document.getElementById('err');
-      const modeEl = document.getElementById('mode');
-
-      if (fileEl){
-        fileEl.addEventListener('change', (ev) => {
-          currentFile = ev.target.files && ev.target.files[0];
-          if (currentFile && preview){
-            const url = URL.createObjectURL(currentFile);
-            lastPreviewSrc = url; preview.src = url;
-            preview.onload = () => { try { URL.revokeObjectURL(url); } catch(_){} };
-          }
-        });
-      }
-
-      console.log('[GanadoBravo] evaluateBtn exists?', !!btn);
     if (btn){
-        btn.addEventListener('click', async () => {
-          if (!currentFile){
-            if (err) err.textContent = 'Selecciona una imagen primero.';
-            return;
-          }
-          if (err) err.textContent = '';
-          const fd = new FormData();
-          fd.append('mode', (modeEl && modeEl.value) ? modeEl.value : 'levante');
-          fd.set('file', currentFile, currentFile.name);
-          try{
-            const res = await (()=>{const m=document.querySelector('meta[name="api-base"]');const base=(m&&m.content)||'';return fetch((base||'') + '/evaluate', { method:'POST', body: fd, cache:'no-store' }); })()
-            const txt = await res.text(); if (!res.ok) throw new Error(txt);
-            const data = JSON.parse(txt);
-            const payload = Array.isArray(data) ? ((data[0] && (data[0].result || data[0])) || {}) : (data.result || data);
-            render(payload);
-            if (preview && lastPreviewSrc) preview.src = lastPreviewSrc;
-          }catch(ex){
-            if (err) err.textContent = ex.message || 'Error evaluando';
-            if (preview && lastPreviewSrc) preview.src = lastPreviewSrc;
-          }
-        });
-      }
-    });
+      btn.addEventListener('click', async function(){
+        if (!window.currentFile){
+          if (err) err.textContent = 'Selecciona una imagen primero.';
+          return;
+        }
+        if (err) err.textContent = '';
+        clearNetErr();
+        btn.disabled = true;
+        btn.textContent = 'Evaluando…';
+        var fd = new FormData();
+        fd.append('mode', (modeEl && modeEl.value) ? modeEl.value : 'levante');
+        fd.set('file', window.currentFile, window.currentFile.name);
+        try{
+          var txt = await apiFetch('/evaluate', { method:'POST', body: fd, cache:'no-store' }, 30000);
+          var data = JSON.parse(txt);
+          var payload = Array.isArray(data) ? ((data[0] && (data[0].result||data[0])) || {}) : (data.result || data);
+          render(payload);
+          if (preview && window.lastPreviewSrc) preview.src = window.lastPreviewSrc;
+        }catch(ex){
+          var msg = (ex && ex.message) ? ex.message : String(ex);
+          if (err) err.textContent = 'Error evaluando';
+          console.error('[GanadoBravo] evaluate failed:', msg);
+        }finally{
+          btn.disabled = false;
+          btn.textContent = 'Evaluar';
+        }
+      });
+    }
+  });
   </script>
 </body>
 </html>
