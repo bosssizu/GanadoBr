@@ -128,7 +128,33 @@
   </main>
 
   <script>
-    let currentFile=null, lastPreviewSrc='';
+    // === GanadoBravo boot hooks ===
+(function(){
+  function ensureErrBox(){ 
+    var b=document.getElementById('netErr'); 
+    if(!b){ 
+      var x=document.createElement('div'); 
+      x.id='netErr'; 
+      x.className='mt-2 p-3 rounded-lg bg-red-50 text-red-700 text-sm'; 
+      document.body.prepend(x);
+      b=x;
+    } 
+    return b; 
+  }
+  function show(msg){ 
+    try{
+      var b=ensureErrBox(); 
+      b.classList.remove('hidden'); 
+      b.innerHTML=msg; 
+    }catch(e){ try{ alert(String(msg)); }catch(_){} }
+    console.error('[GanadoBravo]', msg);
+  }
+  window.addEventListener('error', function(e){ show('JS error: ' + (e && (e.message||e.error) || 'unknown')); });
+  window.addEventListener('unhandledrejection', function(e){ show('Promise rejection: ' + (e && (e.reason && (e.reason.message||e.reason)) || 'unknown')); });
+  console.log('[GanadoBravo] UI booting…');
+})();
+
+let currentFile=null, lastPreviewSrc='';
 
 function getApiBase(){
   const m=document.querySelector('meta[name="api-base"]');
@@ -299,7 +325,7 @@ function render(d){
       htmlSet('breedBox', renderBreed(d.breed || d.breed_ai || d.breeds));
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', () => { console.log('[GanadoBravo] DOM ready');
       const fileEl = document.getElementById('file');
       const preview = document.getElementById('preview');
       const btn = document.getElementById('evaluateBtn');
@@ -317,7 +343,8 @@ function render(d){
         });
       }
 
-      if (btn){
+      console.log('[GanadoBravo] evaluateBtn exists?', !!btn);
+    if (btn){
         btn.addEventListener('click', async () => {
           if (!currentFile){
             if (err) err.textContent = 'Selecciona una imagen primero.';
