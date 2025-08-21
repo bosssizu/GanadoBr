@@ -32,8 +32,6 @@ try:
 except Exception:
     pass
 
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-
 CACHE: Dict[str, Dict[str, Any]] = {}
 
 def _cfg() -> Dict[str, Any]:
@@ -157,3 +155,47 @@ async def root():
 @app.get("/", response_class=HTMLResponse)
 async def root():
     return RedirectResponse(url="/static/index.html", status_code=307)
+
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+@app.get("/", response_class=HTMLResponse)
+async def root():
+    try:
+        if INDEX_HTML.exists():
+            return FileResponse(str(INDEX_HTML))
+    except Exception:
+        pass
+    html = '<!doctype html>\n<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">\n<title>GanadoBravo</title></head><body style="font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;padding:24px;max-width:780px;margin:auto;">\n<h1>GanadoBravo</h1>\n<p>No se encontró <code>static/index.html</code> dentro del contenedor.</p>\n<ul>\n  <li><strong>Ruta esperada:</strong> {{index_path}}</li>\n  <li><strong>Directorio actual:</strong> {{cwd}}</li>\n  <li><strong>Contenido de /app:</strong> ver <a href="/_debug/static-list">/_debug/static-list</a></li>\n</ul>\n<p>Si el frontend y backend están en servicios distintos, asegúrate de publicar el UI en este mismo servicio, o ajusta el dominio del API en el meta <code>api-base</code> del HTML.</p>\n</body></html>'
+    html = html.replace("{index_path}", str(INDEX_HTML)).replace("{cwd}", os.getcwd())
+    return HTMLResponse(html, status_code=200)
+
+@app.get("/_debug/static-list", response_class=HTMLResponse)
+async def debug_static():
+    try_paths = [
+        str(INDEX_HTML),
+        str(STATIC_DIR / "index.html"),
+        "static/index.html",
+        "/app/static/index.html",
+    ]
+    def ls(path):
+        try:
+            from pathlib import Path
+            p = Path(path)
+            if p.is_dir():
+                items = [f"{'d' if x.is_dir() else 'f'}\t{x.name}" for x in p.iterdir()]
+                return "<br>".join(items) if items else "(vacío)"
+            elif p.is_file():
+                return "(archivo presente)"
+            else:
+                return "(no existe)"
+        except Exception as e:
+            return f"(error: {e})"
+    html = "<h2>Debug static/index.html</h2>"
+    html += "<p><b>CWD:</b> " + os.getcwd() + "</p>"
+    html += "<p><b>BASE_DIR:</b> " + str(BASE_DIR) + "</p>"
+    html += "<ul>"
+    for tp in try_paths:
+        html += f"<li><code>{tp}</code>: {ls(Path(tp).parent)}</li>"
+    html += "</ul>"
+    html += "<p><a href='/'>volver</a></p>"
+    return HTMLResponse(html)
