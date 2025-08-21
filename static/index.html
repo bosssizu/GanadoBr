@@ -27,6 +27,7 @@
   </header>
 
   <main class="max-w-7xl mx-auto px-4 py-4 md:py-8 grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+    <!-- Columna izquierda: Controles + Vista previa -->
     <section class="space-y-4 lg:col-span-1">
       <div class="card p-4 md:p-5">
         <h2 class="text-base font-semibold text-gray-900 mb-3">Entrada</h2>
@@ -67,7 +68,9 @@
       </div>
     </section>
 
+    <!-- Columna derecha: Resultados -->
     <section class="lg:col-span-2 space-y-4">
+      <!-- Estado QC -->
       <div class="card p-4 md:p-5">
         <div class="flex flex-wrap items-center gap-2 text-sm">
           <span class="text-gray-500">Calidad de entrada:</span>
@@ -77,15 +80,19 @@
         <div id="visBox" class="mt-3 text-sm text-gray-700"></div>
       </div>
 
+      <!-- Decisión + barras -->
       <div class="card p-4 md:p-5">
         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
           <h2 class="text-xl font-semibold text-gray-900">Resultado</h2>
           <div class="text-sm text-gray-600">Presentación optimizada para móviles</div>
         </div>
         <div class="mb-3" id="decisionStrip"></div>
-        <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4" id="scoreCards"></div>
+        <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4" id="scoreCards">
+          <!-- tarjetas de puntaje renderizadas por JS -->
+        </div>
       </div>
 
+      <!-- Rúbrica (siempre visible) -->
       <div id="rubricCard" class="card p-3 md:p-5">
         <div class="flex items-center justify-between gap-2">
           <h3 class="font-semibold text-gray-900">Rúbrica detallada</h3>
@@ -105,11 +112,13 @@
         </div>
       </div>
 
+      <!-- Salud -->
       <div class="card p-4 md:p-5">
         <h3 class="font-semibold text-gray-900">Salud</h3>
         <div id="healthBox" class="mt-2 text-sm text-gray-800"></div>
       </div>
 
+      <!-- Raza -->
       <div class="card p-4 md:p-5">
         <h3 class="font-semibold text-gray-900">Raza</h3>
         <div id="breedBox" class="mt-2 text-sm text-gray-800"></div>
@@ -118,6 +127,7 @@
   </main>
 
   <script>
+  // ======= util UI =======
   function htmlSet(id, html){ var el=document.getElementById(id); if(el) el.innerHTML=html; }
   function safeSet(id, txt){ var el=document.getElementById(id); if(el) el.textContent=txt; }
 
@@ -257,13 +267,11 @@
       txt = await res.text();
     }catch(e){
       clearTimeout(t);
-      showNetErr('Network error: ' + (e && e.message ? e.message : e));
-      throw e;
+      throw new Error('Network error: ' + (e && e.message ? e.message : e));
     }
     clearTimeout(t);
     if (!res.ok){
-      showNetErr('HTTP ' + res.status + ' on ' + path + (txt? (': ' + txt.slice(0,300)) : ''));
-      throw new Error('HTTP ' + res.status);
+      throw new Error('HTTP ' + res.status + ' on ' + path + (txt? (': ' + txt.slice(0,300)) : ''));
     }
     return txt;
   }
@@ -312,7 +320,7 @@
         }catch(ex){
           var msg = (ex && ex.message) ? ex.message : String(ex);
           if (err) err.textContent = 'Error evaluando';
-          console.error('[GanadoBravo] evaluate failed:', msg);
+          showNetErr('No se pudo evaluar. ' + msg + '<br><small>Verifica que exista <code>POST /evaluate</code> en <code>/docs</code> y que no haya CORS.</small>');
         }finally{
           btn.disabled = false;
           btn.textContent = 'Evaluar';

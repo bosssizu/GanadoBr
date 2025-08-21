@@ -84,6 +84,11 @@ def _validate_input(img: Image.Image):
     return JSONResponse(d)
 
 @app.post("/evaluate_batch")
+@app.post("/evaluate")
+async def evaluate(file: UploadFile = File(...), mode: str = Form("levante")):
+    # Reuse batch evaluator for a single file to keep logic identical
+    return await evaluate_batch(files=[file], mode=mode)
+
 async def evaluate_batch(files: List[UploadFile] = File(...), mode: str = Form("levante")):
     results = []
     cfg = _cfg()
