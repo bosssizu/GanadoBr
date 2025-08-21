@@ -86,15 +86,19 @@ def _validate_input(img: Image.Image):
 @app.post("/evaluate_batch")
 
 @app.post("/evaluate")
-async def evaluate(upload: UploadFile = File(...), mode: str = Form("levante")):
-    """Alias de /evaluate_batch para 1 archivo. Devuelve el mismo formato (lista)."""
+async def evaluate(file: UploadFile = File(...), mode: str = Form("levante")):
+    """Alias de /evaluate_batch para 1 archivo.
+    Espera el campo multipart llamado **file** (coincide con el frontend).
+    Devuelve el mismo formato (lista).
+    """
     try:
-        resp = await evaluate_batch(files=[upload], mode=mode)  # type: ignore
+        resp = await evaluate_batch(files=[file], mode=mode)  # type: ignore
         return resp
     except Exception as e:
         import traceback
         tb = traceback.format_exc()
         return JSONResponse({"error":"evaluate_failed","detail":str(e),"trace":tb}, status_code=500)
+
 
 
 async def evaluate_batch(files: List[UploadFile] = File(...), mode: str = Form("levante")):
