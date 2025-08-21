@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form, UploadFile, File, Form
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -84,21 +84,6 @@ def _validate_input(img: Image.Image):
     return JSONResponse(d)
 
 @app.post("/evaluate_batch")
-
-@app.post("/evaluate")
-async def evaluate(file: UploadFile = File(...), mode: str = Form("levante")):
-    """Alias de /evaluate_batch para 1 archivo.
-    Espera el campo multipart llamado **file** (coincide con el frontend).
-    Devuelve el mismo formato (lista).
-    """
-    try:
-        resp = await evaluate_batch(files=[file], mode=mode)  # type: ignore
-        return resp
-    except Exception as e:
-        import traceback
-        tb = traceback.format_exc()
-        return JSONResponse({"error":"evaluate_failed","detail":str(e),"trace":tb}, status_code=500)
-
 
 
 async def evaluate_batch(files: List[UploadFile] = File(...), mode: str = Form("levante")):
@@ -209,3 +194,12 @@ async def root():
         return HTMLResponse(html, status_code=200)
     except Exception as e:
         return HTMLResponse(f"<h1>GanadoBravo</h1><p>Error leyendo index: {e}</p>", status_code=200)
+
+@app.post("/evaluate")
+async def evaluate(file: UploadFile = File(...), mode: str = Form("levante")):
+    try:
+        resp = evaluate_batch(files=[file], mode=mode)
+        return resp
+    except Exception as e:
+        import traceback
+        return JSONResponse({"error":"evaluate_failed","detail":str(e),"trace":traceback.format_exc()}, status_code=500)
