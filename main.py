@@ -199,3 +199,12 @@ async def debug_static():
     html += "</ul>"
     html += "<p><a href='/'>volver</a></p>"
     return HTMLResponse(html)
+
+@app.get("/", response_class=HTMLResponse)
+async def root():
+    try:
+        with open(INDEX_HTML, "r", encoding="utf-8") as f:
+            html = f.read()
+        return HTMLResponse(html, status_code=200)
+    except Exception as e:
+        return HTMLResponse(f"<h1>GanadoBravo</h1><p>Error leyendo index: {e}</p>", status_code=200)
