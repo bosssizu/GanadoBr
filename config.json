@@ -1,0 +1,98 @@
+{
+  "weights_by_mode": {
+    "levante": {
+      "bcs": 0.3,
+      "grupo_posterior": 0.1,
+      "aplomos": 0.05,
+      "linea_dorsal": 0.12,
+      "prof_toracica": 0.12,
+      "costillar": 0.07,
+      "cabeza_cuello": 0.04,
+      "cola_grupa": 0.04,
+      "piel_pelo": 0.06
+    },
+    "engorde": {
+      "bcs": 0.3,
+      "grupo_posterior": 0.3,
+      "aplomos": 0.05,
+      "linea_dorsal": 0.08,
+      "prof_toracica": 0.08,
+      "costillar": 0.04,
+      "cola_grupa": 0.05,
+      "piel_pelo": 0.1,
+      "cabeza_cuello": 0.0
+    },
+    "vaca_flaca": {
+      "bcs": 0.4,
+      "aplomos": 0.25,
+      "linea_dorsal": 0.08,
+      "prof_toracica": 0.08,
+      "costillar": 0.04,
+      "piel_pelo": 0.1,
+      "cabeza_cuello": 0.04,
+      "cola_grupa": 0.01,
+      "grupo_posterior": 0.0
+    }
+  },
+  "decision_sublevels": {
+    "no_comprar_max": 2.9,
+    "considerar_bajo_max": 3.2,
+    "considerar_alto_max": 3.7
+  },
+  "visibility_caps": {
+    "lt_0_35": 3.5,
+    "lt_0_55": 3.9
+  },
+  "pathology": {
+    "alert_threshold": 0.95,
+    "confirm_threshold": 0.99,
+    "auto_block_threshold": 0.9,
+    "shape": {
+      "min_area_ratio": 0.0008,
+      "max_area_ratio": 0.08,
+      "oval_aspect_lo": 0.6,
+      "oval_aspect_hi": 1.8,
+      "extent_min": 0.45
+    },
+    "checklist": {
+      "levante": [
+        "lesion_cutanea",
+        "ojo_infectado",
+        "prolapso",
+        "cojera"
+      ],
+      "engorde": [
+        "lesion_cutanea",
+        "cojera",
+        "ojo_infectado",
+        "prolapso"
+      ],
+      "vaca_flaca": [
+        "lesion_cutanea",
+        "cojera",
+        "ojo_infectado"
+      ]
+    }
+  },
+  "validator": {
+    "min_side": 256,
+    "blur_threshold": 0.0008
+  },
+  "breed": {
+    "zebu_hi": 0.55,
+    "zebu_lo": 0.4,
+    "weights": {
+      "ears": 0.35,
+      "dewlap": 0.4,
+      "hump": 0.25
+    }
+  },
+  "breed_policy": "ai_only",
+  "breed_ai": {
+    "enabled": true,
+    "provider": "stub",
+    "model": "gpt-4o-mini",
+    "strict": true,
+    "timeout_s": 20
+  }
+}
