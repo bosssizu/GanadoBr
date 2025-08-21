@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>GanadoBravo — Evaluación</title>
+  <meta name="theme-color" content="#0B1220"/>
+  <meta name="api-base" content="">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root{ color-scheme: light; }
+    body{ background:#f6f8fb; }
+    .card{ background:#fff; border-radius:1rem; box-shadow:0 6px 20px rgba(17,24,39,.06); }
+    .pill{ display:inline-block; padding:.25rem .62rem; border-radius:9999px; font-size:.75rem; font-weight:600; }
+    .pill-green{ background:#e9f9ee; color:#0a7a3b; }
+    .pill-amber{ background:#fff4e5; color:#8a5300; }
+    .pill-red{ background:#feeaea; color:#9b1c1c; }
+    .sticky-cta{ position:sticky; bottom:0; background:linear-gradient(180deg, rgba(246,248,251,.0), rgba(246,248,251,1) 30%); padding-top:.5rem; }
+  </style>
+</head>
+<body class="min-h-screen">
+  <header class="bg-white/90 backdrop-blur border-b border-gray-200 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+      <h1 class="text-lg md:text-2xl font-bold tracking-tight text-gray-900">GanadoBravo — Evaluación</h1>
+      <div id="err" class="text-sm text-red-600 font-medium"></div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-4 md:py-8 grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
+    <!-- Columna izquierda: Controles + Vista previa -->
+    <section class="space-y-4 lg:col-span-1">
+      <div class="card p-4 md:p-5">
+        <h2 class="text-base font-semibold text-gray-900 mb-3">Entrada</h2>
+        <div class="space-y-3">
+          <label class="block">
+            <span class="text-sm text-gray-700">Imagen (JPG/PNG)</span>
+            <input id="file" type="file" accept="image/*" class="mt-1 w-full text-sm file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-gray-900 file:text-white hover:file:opacity-90" />
+          </label>
+          <label class="block">
+            <span class="text-sm text-gray-700">Modo</span>
+            <select id="mode" class="mt-1 w-full rounded-lg border-gray-300 focus:ring-2 focus:ring-gray-900">
+              <option value="levante">Levante</option>
+              <option value="engorde">Engorde</option>
+              <option value="vaca_flaca">Vaca flaca</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="sticky-cta mt-4 md:mt-6">
+          <button id="evaluateBtn" type="button" class="w-full py-3 rounded-xl bg-gray-900 text-white font-semibold hover:opacity-90 active:opacity-100 transition">
+            Evaluar
+          </button>
+          <p id="meta" class="mt-2 text-xs text-gray-500 text-center">—</p>
+          <div id="netErr" class="hidden mt-2 p-3 rounded-lg bg-red-50 text-red-700 text-sm"></div>
+        </div>
+      </div>
+
+      <div class="card p-4 md:p-5">
+        <div class="text-sm text-gray-600 mb-2">Vista previa</div>
+        <div class="w-full aspect-[4/3] bg-gray-100 rounded-xl flex items-center justify-center overflow-hidden">
+          <img id="preview" class="max-h-full max-w-full object-contain" alt="vista previa" />
+        </div>
+      </div>
+
+      <div class="card p-4 md:p-5">
+        <h3 class="font-semibold text-gray-900 mb-2">Notas y razones</h3>
+        <ul id="reasons" class="list-disc list-inside text-sm text-gray-700 space-y-1"></ul>
+      </div>
+    </section>
+
+    <!-- Columna derecha: Resultados -->
+    <section class="lg:col-span-2 space-y-4">
+      <!-- Estado QC -->
+      <div class="card p-4 md:p-5">
+        <div class="flex flex-wrap items-center gap-2 text-sm">
+          <span class="text-gray-500">Calidad de entrada:</span>
+          <span id="stabPill" class="pill">—</span>
+          <span id="auctionPill" class="pill">—</span>
+        </div>
+        <div id="visBox" class="mt-3 text-sm text-gray-700"></div>
+      </div>
+
+      <!-- Decisión + barras -->
+      <div class="card p-4 md:p-5">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+          <h2 class="text-xl font-semibold text-gray-900">Resultado</h2>
+          <div class="text-sm text-gray-600">Presentación optimizada para móviles</div>
+        </div>
+        <div class="mb-3" id="decisionStrip"></div>
+        <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4" id="scoreCards">
+          <!-- tarjetas de puntaje renderizadas por JS -->
+        </div>
+      </div>
+
+      <!-- Rúbrica (siempre visible) -->
+      <div id="rubricCard" class="card p-3 md:p-5">
+        <div class="flex items-center justify-between gap-2">
+          <h3 class="font-semibold text-gray-900">Rúbrica detallada</h3>
+          <span class="text-xs text-gray-500">Se actualiza con cada evaluación</span>
+        </div>
+        <div class="overflow-x-auto mt-3">
+          <table class="min-w-full text-sm">
+            <thead class="text-left text-gray-600">
+              <tr>
+                <th class="py-2 pr-4">Métrica</th>
+                <th class="py-2 pr-4">Puntaje</th>
+                <th class="py-2">Observaciones</th>
+              </tr>
+            </thead>
+            <tbody id="rubricTbl" class="align-top text-gray-800"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Salud -->
+      <div class="card p-4 md:p-5">
+        <h3 class="font-semibold text-gray-900">Salud</h3>
+        <div id="healthBox" class="mt-2 text-sm text-gray-800"></div>
+      </div>
+
+      <!-- Raza -->
+      <div class="card p-4 md:p-5">
+        <h3 class="font-semibold text-gray-900">Raza</h3>
+        <div id="breedBox" class="mt-2 text-sm text-gray-800"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+  // ======= util UI =======
+  function htmlSet(id, html){ var el=document.getElementById(id); if(el) el.innerHTML=html; }
+  function safeSet(id, txt){ var el=document.getElementById(id); if(el) el.textContent=txt; }
+
+  function pillClass(dec){
+    var d = String(dec||'').toUpperCase();
+    if (d.startsWith('COMPRAR')) return 'pill pill-green';
+    if (d.startsWith('CONSIDERAR')) return 'pill pill-amber';
+    return 'pill pill-red';
+  }
+  function barClass(dec){
+    var d = String(dec||'').toUpperCase();
+    if (d.startsWith('COMPRAR')) return 'bg-green-600';
+    if (d.startsWith('CONSIDERAR')) return 'bg-amber-600';
+    return 'bg-red-600';
+  }
+
+  function renderDecisionStrip(d){
+    var level = String(d.decision_level||d.decision||'').toUpperCase();
+    var cats = [
+      {key:'NO_COMPRAR',        label:'No comprar'},
+      {key:'CONSIDERAR_BAJO',   label:'Considerar (bajo)'},
+      {key:'CONSIDERAR_ALTO',   label:'Considerar (alto)'},
+      {key:'COMPRAR',           label:'Comprar'}
+    ];
+    var items = cats.map(function(c){
+      var active = (level===c.key);
+      var cls = active ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-800';
+      return '<div class="px-3 py-2 rounded-lg text-xs font-medium '+cls+'">'+c.label+'</div>';
+    }).join('');
+    return '<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">'+items+'</div>';
+  }
+
+  function renderScorecards(d){
+    var items = [
+      { key:'decision_text',    label:'Decisión' },
+      { key:'global_score',     label:'Puntaje global' },
+      { key:'bcs',              label:'BCS' },
+      { key:'risk',             label:'Riesgo' },
+      { key:'posterior_bonus',  label:'Bono posterior' },
+      { key:'notes',            label:'Notas' }
+    ];
+    var cards = items.map(function(it){
+      var val = d[it.key];
+      if (val==null || val==='') return '';
+      if (it.key==='decision_text'){
+        return '<div class="card p-4">'
+          + '<div class="text-sm text-gray-500">'+it.label+'</div>'
+          + '<div class="mt-1 flex items-center gap-2"><span class="'+pillClass(val)+'">'+val+'</span></div>'
+          + '<div class="mt-3 w-full h-2 rounded-full bg-gray-100 overflow-hidden"><div class="h-full '+barClass(val)+'" style="width:'+Math.min(100, Math.max(0, Number(d.global_score||0)*10))+'%"></div></div>'
+          + '</div>';
+      }
+      return '<div class="card p-4">'
+        + '<div class="text-sm text-gray-500">'+it.label+'</div>'
+        + '<div class="mt-1 text-lg font-semibold text-gray-900">'+(typeof val==='number'? Number(val).toFixed(2) : val)+'</div>'
+        + '</div>';
+    }).join('');
+    htmlSet('scoreCards', cards);
+  }
+
+  function renderBreed(b){
+    if (!b) return '—';
+    var name = b.name || b.best || '—';
+    var conf = (b.confidence!=null)? Number(b.confidence).toFixed(2) : (b.conf||null);
+    var extra = b.explanation || b.notes || '';
+    return '<div class="flex flex-col gap-1">'
+      + '<div><span class="font-semibold">'+name+'</span>'+(conf!=null? ' · conf='+conf : '')+'</div>'
+      + (extra? '<div class="text-sm text-gray-600">'+extra+'</div>' : '')
+      + '</div>';
+  }
+
+  function renderHealth(health){
+    if (!Array.isArray(health) || !health.length){ return '—'; }
+    return '<ul class="space-y-1">' + health.map(function(h){
+      var sev = String(h.severity||'').toLowerCase();
+      var name = h.name || '—';
+      var status = (sev==='confirmada') ? 'Confirmada' : (sev==='alerta' ? 'Alerta' : 'Descartado');
+      var icon = (sev==='confirmada') ? '🛑' : (sev==='alerta' ? '⚠️' : '✓');
+      return '<li class="flex items-start"><span class="mr-2">'+icon+'</span><span><span class="font-medium">'+name+'</span> = '+status+'</span></li>';
+    }).join('') + '</ul>';
+  }
+
+  function render(d){
+    var qc = d.qc||{};
+    safeSet('meta', 'modo='+(d.mode||'-')+' · conf='+Number(d.global_conf||0).toFixed(2)+' · nivel='+(d.decision_level||'-'));
+    if (qc.visible_ratio!=null){
+      safeSet('visBox', 'Porción visible: '+Math.round((qc.visible_ratio*100))+'%'+(qc.auction_mode?' · modo subasta':''));
+    }
+    var stab = (qc.stability || qc.input_quality || '—');
+    var auction = (qc.auction_mode ? 'Subasta' : 'Normal');
+    var sp = document.getElementById('stabPill'); if (sp){ sp.className = 'pill ' + (stab==='alta'?'pill-green':(stab==='media'?'pill-amber':'pill-red')); sp.textContent = 'Estabilidad: '+stab; }
+    var ap = document.getElementById('auctionPill'); if (ap){ ap.className = 'pill ' + (qc.auction_mode?'pill-amber':'pill-green'); ap.textContent = 'Modo: '+auction; }
+    htmlSet('decisionStrip', renderDecisionStrip(d));
+    renderScorecards(d);
+    var rub = (d.rubric || []).map(function(item){
+      var score = Number(item.score); if (!isFinite(score)) score = 0;
+      return '<tr><td class="py-2 pr-4 font-medium">'+(item.name||'-')+'</td><td class="py-2 pr-4">'+score.toFixed(1)+'</td><td class="py-2">'+(item.obs||'')+'</td></tr>';
+    }).join('');
+    htmlSet('rubricTbl', rub);
+    var r = (d.reasons || []).map(function(t){ return '<li>'+t+'</li>'; }).join('');
+    htmlSet('reasons', r);
+    htmlSet('healthBox', renderHealth(d.health));
+    htmlSet('breedBox', renderBreed(d.breed || d.breed_ai || d.breeds));
+  }
+
+  function getApiBase(){
+    var m=document.querySelector('meta[name="api-base"]');
+    var v = (m && m.content)? m.content.trim() : '';
+    if (!v) return '';
+    if (v.endsWith('/')) v = v.slice(0,-1);
+    return v;
+  }
+
+  function showNetErr(msg){
+    var box = document.getElementById('netErr');
+    if (!box) return;
+    box.classList.remove('hidden');
+    box.innerHTML = msg;
+    console.error('[GanadoBravo] ', msg);
+  }
+  function clearNetErr(){
+    var box = document.getElementById('netErr');
+    if (!box) return;
+    box.classList.add('hidden');
+    box.textContent = '';
+  }
+
+  async function apiFetch(path, opts, timeoutMs){
+    if (opts===undefined) opts = {};
+    if (timeoutMs===undefined) timeoutMs = 30000;
+    var base = getApiBase();
+    var url = (base? base : '') + path;
+    var ctrl = new AbortController();
+    var t = setTimeout(function(){ try{ ctrl.abort('timeout'); }catch(_){} }, timeoutMs);
+    var res, txt;
+    try{
+      res = await fetch(url, Object.assign({ signal: ctrl.signal }, opts));
+      txt = await res.text();
+    }catch(e){
+      clearTimeout(t);
+      throw new Error('Network error: ' + (e && e.message ? e.message : e));
+    }
+    clearTimeout(t);
+    if (!res.ok){
+      throw new Error('HTTP ' + res.status + ' on ' + path + (txt? (': ' + txt.slice(0,300)) : ''));
+    }
+    return txt;
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    console.log('[GanadoBravo] DOM ready');
+    var fileEl = document.getElementById('file');
+    var preview = document.getElementById('preview');
+    var btn = document.getElementById('evaluateBtn');
+    var err = document.getElementById('err');
+    var modeEl = document.getElementById('mode');
+
+    console.log('[GanadoBravo] evaluateBtn exists?', !!btn);
+
+    if (fileEl){
+      fileEl.addEventListener('change', function(ev){
+        window.currentFile = ev.target.files && ev.target.files[0] || null;
+        if (window.currentFile && preview){
+          var url = URL.createObjectURL(window.currentFile);
+          window.lastPreviewSrc = url;
+          preview.src = url;
+          preview.onload = function(){ try{ URL.revokeObjectURL(url); }catch(_){ } };
+        }
+      });
+    }
+
+    if (btn){
+      btn.addEventListener('click', async function(){
+        if (!window.currentFile){
+          if (err) err.textContent = 'Selecciona una imagen primero.';
+          return;
+        }
+        if (err) err.textContent = '';
+        clearNetErr();
+        btn.disabled = true;
+        btn.textContent = 'Evaluando…';
+        var fd = new FormData();
+        fd.append('mode', (modeEl && modeEl.value) ? modeEl.value : 'levante');
+        fd.set('file', window.currentFile, window.currentFile.name);
+        try{
+          var txt = await apiFetch('/evaluate', { method:'POST', body: fd, cache:'no-store' }, 30000);
+          var data = JSON.parse(txt);
+          var payload = Array.isArray(data) ? ((data[0] && (data[0].result||data[0])) || {}) : (data.result || data);
+          render(payload);
+          if (preview && window.lastPreviewSrc) preview.src = window.lastPreviewSrc;
+        }catch(ex){
+          var msg = (ex && ex.message) ? ex.message : String(ex);
+          if (err) err.textContent = 'Error evaluando';
+          showNetErr('No se pudo evaluar. ' + msg + '<br><small>Verifica que exista <code>POST /evaluate</code> en <code>/docs</code> y que no haya CORS.</small>');
+        }finally{
+          btn.disabled = false;
+          btn.textContent = 'Evaluar';
+        }
+      });
+    }
+  });
+  </script>
+</body>
+</html>
