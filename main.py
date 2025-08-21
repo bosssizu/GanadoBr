@@ -3,6 +3,7 @@ from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 from typing import Any, Dict, List
 from PIL import Image
 import io
@@ -18,6 +19,18 @@ BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 INDEX_HTML = STATIC_DIR / "index.html"
 app = FastAPI(title="GanadoBravo v9d")
+
+
+class RootRedirectMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        if request.url.path == "/":
+            from starlette.responses import RedirectResponse
+            return RedirectResponse("/static/index.html", status_code=307)
+        return await call_next(request)
+
+# Register middleware
+app.add_middleware(RootRedirectMiddleware)
+
 
 # CORS (permite UI en otro dominio)
 try:
