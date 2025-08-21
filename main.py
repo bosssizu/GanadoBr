@@ -86,46 +86,22 @@ def _validate_input(img: Image.Image):
 @app.post("/evaluate_batch")
 @app.post("/evaluate")
 async def evaluate(file: UploadFile = File(...), mode: str = Form("levante")):
-    # Reuse batch evaluator for a single file to keep logic identical
-    return await evaluate_batch(files=[file], mode=mode)
+    try:
+        resp = await evaluate_batch(files=[file], mode=mode)
+        return resp
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        return JSONResponse({"error":"evaluate_failed","detail":str(e),"trace":tb}, status_code=500)
 
 async def evaluate_batch(files: List[UploadFile] = File(...), mode: str = Form("levante")):
-    results = []
-    cfg = _cfg()
-    for f in files:
-        try:
-            raw = await f.read()
-            img = Image.open(io.BytesIO(raw)).convert("RGB")
-        except Exception:
-            results.append({"filename": f.filename, "error":"imagen inválida"})
-            continue
-        d: Dict[str, Any] = {"mode": mode, "qc": {}, "reasons": []}
-        vis_ratio = _estimate_visible_ratio(img)
-        d["qc"]["visible_ratio"] = round(vis_ratio, 2)
-        d["qc"]["auction_mode"] = (vis_ratio < 0.55) or (mode == "auction")
-        d["raw_image"] = img
-        warn = _validate_input(img)
-        for w in warn:
-            d["reasons"].append(w)
-        first = run_auction_heuristics(img)
-        d = apply_heuristic_scoring(d, first)
-        health = run_pathology_heuristic(img, mode, vis_ratio)
-        d["health"] = health["health"]
-        _health_override(d, d["health"], cfg)
-        # --- breed evaluation (heuristic + AI) ---
-        try:
-            heur_b = run_breed_heuristic(img, cfg)
-        except Exception:
-            heur_b = {}
-        try:
-            ai_b = run_breed_ai(img, cfg, heur_b)
-        except Exception:
-            ai_b = {}
-        d["breed"] = heur_b
-        d["breed_ai"] = ai_b
-        d.pop("raw_image", None)
-        results.append({"filename": f.filename, "result": d})
-    return JSONResponse(results)
+    try:
+        resp = await evaluate_batch(files=[file], mode=mode)
+        return resp
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        return JSONResponse({"error":"evaluate_failed","detail":str(e),"trace":tb}, status_code=500)
 
 
 @app.get("/", response_class=HTMLResponse)
