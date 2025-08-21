@@ -17,12 +17,14 @@
     .sticky-cta{ position:sticky; bottom:0; background:linear-gradient(180deg, rgba(246,248,251,.0), rgba(246,248,251,1) 30%); padding-top:.5rem; }
   </style>
   <meta name="api-base" content="">
+  <meta name="api-base" content="">
 </head>
 <body class="min-h-screen">
   <header class="bg-white/90 backdrop-blur border-b border-gray-200 sticky top-0 z-50">
     <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
       <h1 class="text-lg md:text-2xl font-bold tracking-tight text-gray-900">GanadoBravo — Evaluación</h1>
       <div id="err" class="text-sm text-red-600 font-medium"></div>
+<div id="netErr" class="hidden mt-2 p-3 rounded-lg bg-red-50 text-red-700 text-sm"></div>
     </div>
   </header>
 
@@ -127,6 +129,47 @@
 
   <script>
     let currentFile=null, lastPreviewSrc='';
+
+function getApiBase(){
+  const m=document.querySelector('meta[name="api-base"]');
+  return (m && m.content) ? m.content.trim().replace(/\/$/, '') : '';
+}
+
+function showNetErr(msg){
+  const box = document.getElementById('netErr');
+  if (!box) return;
+  box.classList.remove('hidden');
+  box.innerHTML = msg;
+  console.error('[GanadoBravo] ', msg);
+}
+
+function clearNetErr(){
+  const box = document.getElementById('netErr');
+  if (!box) return;
+  box.classList.add('hidden');
+  box.textContent = '';
+}
+
+async function apiFetch(path, opts={}, timeoutMs=20000){
+  const base = getApiBase();
+  const url = (base ? base : '') + path;
+  const ctrl = new AbortController();
+  const t = setTimeout(()=>ctrl.abort('timeout'), timeoutMs);
+  let res, txt;
+  try{
+    res = await fetch(url, { ...opts, signal: ctrl.signal });
+    txt = await res.text();
+  }catch(e){
+    clearTimeout(t);
+    throw new Error('Network error: ' + (e && e.message || e));
+  }
+  clearTimeout(t);
+  if (!res.ok){
+    throw new Error('HTTP ' + res.status + ' on ' + path + (txt? (': ' + txt.slice(0,300)) : ''));
+  }
+  return txt;
+}
+
 
     function htmlSet(id, html){ const el=document.getElementById(id); if(el) el.innerHTML=html; }
     function safeSet(id, txt){ const el=document.getElementById(id); if(el) el.textContent=txt; }
