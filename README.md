@@ -1,12 +1,13 @@
-# GanadoBravo v39 — Full functional
+# GanadoBravo v39b (full)
 
-- FastAPI backend with real pipeline (`pipeline_real.py`) — no external AI calls.
-- UI renders **all morphological metrics** and **all health conditions** (each marked as *Descartado* or *Sospecha*).
-- Endpoints:
-  - `GET /` — SPA
-  - `POST /evaluate` — form-data (`file`, `mode` = `levante`|`subasta`)
-- Run locally:
-  ```bash
-  pip install fastapi uvicorn pillow
-  uvicorn main:app --reload --port 8000
-  ```
+Endpoints:
+- `GET /` -> UI simple
+- `GET /api/health` -> ping
+- `POST /evaluate` **y** `POST /api/eval` -> compatibilidad con ambas rutas
+
+Env/deploy:
+```bash
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+# abre http://localhost:8000
+```

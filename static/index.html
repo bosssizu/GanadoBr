@@ -1,253 +1,50 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>GanadoBravo — Evaluación</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    async function doEval(ev){
+      ev.preventDefault();
+      const file = document.getElementById('file').files[0];
+      const mode = document.getElementById('mode').value;
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('mode', mode);
+      const res = await fetch('/evaluate', { method:'POST', body: fd });
+      const out = document.getElementById('out');
+      if(!res.ok){
+        out.textContent = 'Error: ' + res.status + ' ' + await res.text();
+        return;
+      }
+      const data = await res.json();
+      out.textContent = JSON.stringify(data, null, 2);
+    }
+  </script>
   <style>
-    body{ background:#f6f8fb; }
-    .card{ background:#fff; border-radius:1rem; box-shadow:0 6px 20px rgba(17,24,39,.06); }
-    .pill{ display:inline-block; padding:.25rem .62rem; border-radius:9999px; font-size:.75rem; font-weight:600; }
-    .pill-green{ background:#e9f9ee; color:#0a7a3b; }
-    .pill-amber{ background:#fff4e5; color:#8a5300; }
-    .pill-gray{ background:#f0f2f6; color:#374151; }
-    .btn{ background:#0b1220; color:#fff; border-radius:.75rem; padding:.65rem .9rem; font-weight:600; }
-    .btn[disabled]{ opacity:.6; cursor:not-allowed; }
-    .tab{ padding:.4rem .8rem; border-radius:.6rem; cursor:pointer; }
-    .tab-active{ background:#0b1220; color:#fff; }
+    body{font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin:2rem; }
+    .card{border:1px solid #eee; border-radius:12px; padding:16px; margin-bottom:16px; box-shadow: 0 4px 14px rgba(0,0,0,.06);}
+    pre{white-space: pre-wrap; background:#f7f7f9; padding:12px; border-radius:8px;}
   </style>
 </head>
-<body class="min-h-screen">
-  <div class="max-w-6xl mx-auto p-4 md:p-6">
-    <h1 class="text-2xl font-bold text-gray-900">GanadoBravo — Evaluación</h1>
-
-    <div class="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
-      <aside class="space-y-4">
-        <div class="card p-4">
-          <div class="text-sm text-gray-700">Entrada</div>
-          <div class="mt-2">
-            <input id="file" type="file" accept="image/*" class="block w-full"/>
-          </div>
-          <div class="mt-3">
-            <label class="block text-sm text-gray-600 mb-1">Modo</label>
-            <select id="mode" class="w-full border rounded-lg p-2">
-              <option value="levante">Levante</option>
-              <option value="subasta">Subasta</option>
-            </select>
-          </div>
-          <button id="btnEval" class="mt-4 btn w-full">Evaluar</button>
-          <div id="err" class="mt-2 text-sm text-red-600"></div>
-        </div>
-
-        <div class="card p-4">
-          <div class="text-sm text-gray-700 mb-2">Vista previa</div>
-          <img id="preview" class="w-full aspect-square object-cover rounded-lg bg-gray-100" alt="preview"/>
-        </div>
-
-        <div class="card p-4">
-          <div class="text-sm text-gray-700">Notas y razones</div>
-          <ul id="reasons" class="mt-2 list-disc list-inside text-sm text-gray-700"></ul>
-        </div>
-      </aside>
-
-      <section class="lg:col-span-2 space-y-4">
-        <div class="card p-4">
-          <div class="flex items-center gap-2 text-sm">
-            <span class="text-gray-500">Calidad de entrada:</span>
-            <span id="stabPill" class="pill pill-gray">—</span>
-            <span id="visBox" class="pill pill-gray">—</span>
-            <span id="auctionPill" class="pill pill-gray">—</span>
-          </div>
-        </div>
-
-        <div class="card p-4">
-          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-            <h2 class="text-xl font-semibold text-gray-900">Resultado</h2>
-            <div class="flex gap-1" id="tabs"></div>
-          </div>
-          <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4" id="scoreCards"></div>
-        </div>
-
-        <div class="card p-3 md:p-5">
-          <div class="flex items-center justify-between">
-            <h3 class="font-semibold">Rúbrica detallada</h3>
-            <span class="text-xs text-gray-500">Se actualiza con cada evaluación</span>
-          </div>
-          <div class="overflow-x-auto mt-3">
-            <table class="min-w-full text-sm">
-              <thead class="text-left text-gray-600">
-                <tr>
-                  <th class="py-2 pr-4">Métrica</th>
-                  <th class="py-2 pr-4">Puntaje</th>
-                  <th class="py-2 pr-4">Observaciones</th>
-                </tr>
-              </thead>
-              <tbody id="rubricTbl" class="align-top text-gray-800"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="card p-4">
-          <div class="text-sm font-semibold">Salud</div>
-          <ul id="health" class="mt-2 space-y-1 text-sm text-gray-800"></ul>
-        </div>
-
-        <div class="card p-4">
-          <div class="text-sm font-semibold">Raza</div>
-          <div id="breed" class="mt-2 text-sm text-gray-800">—</div>
-        </div>
-      </section>
-    </div>
+<body>
+  <h1>GanadoBravo — Evaluación (v39b)</h1>
+  <div class="card">
+    <form onsubmit="doEval(event)">
+      <label>Imagen: <input id="file" type="file" accept="image/*" required></label>
+      <label style="margin-left:12px;">Modo:
+        <select id="mode">
+          <option value="levante">Levante</option>
+          <option value="subasta">Subasta</option>
+        </select>
+      </label>
+      <button type="submit">Evaluar</button>
+    </form>
   </div>
-
-  <script>
-    function pillClass(val){
-      switch(val){
-        case 'Comprar': return 'pill pill-green';
-        case 'Considerar alto':
-        case 'Considerar bajo': return 'pill pill-amber';
-        case 'No comprar':
-        default: return 'pill pill-gray';
-      }
-    }
-    function htmlSet(id, html){ var el=document.getElementById(id); if(el) el.innerHTML=html; }
-    function textSet(id, txt){ var el=document.getElementById(id); if(el) el.textContent=txt; }
-
-    function renderTabs(level){
-      var levels = [
-        ['NO_COMPRAR','No comprar'],
-        ['CONSIDERAR_BAJO','Considerar (bajo)'],
-        ['CONSIDERAR_ALTO','Considerar (alto)'],
-        ['COMPRAR','Comprar']
-      ];
-      var html = levels.map(function(L){
-        var active = (L[0]===level);
-        return '<div class="tab '+(active?'tab-active':'')+'">'+L[1]+'</div>';
-      }).join('');
-      htmlSet('tabs', html);
-    }
-
-    function renderScoreCards(d){
-      var items = [
-        {label:'Decisión', key:'decision_text'},
-        {label:'Puntaje global', key:'global_score'},
-        {label:'BCS', key:'bcs'},
-        {label:'Riesgo', key:'risk'},
-        {label:'Bono posterior', key:'posterior_bonus'},
-        {label:'Notas', key:'notes'}
-      ];
-      var cards = items.map(function(it){
-        var val = d[it.key];
-        if (val==null) return '';
-        if (it.key==='decision_text'){
-          return '<div class="card p-4">'
-            + '<div class="text-sm text-gray-500">'+it.label+'</div>'
-            + '<div class="mt-1"><span class="'+pillClass(val)+'">'+val+'</span></div>'
-            + '</div>';
-        }
-        return '<div class="card p-4">'
-          + '<div class="text-sm text-gray-500">'+it.label+'</div>'
-          + '<div class="mt-1 text-lg font-semibold">'+(typeof val==='number'? Number(val).toFixed(2) : val)+'</div>'
-          + '</div>';
-      }).join('');
-      htmlSet('scoreCards', cards);
-    }
-
-    function renderRubric(rubric){
-      if (!Array.isArray(rubric)) { htmlSet('rubricTbl',''); return; }
-      var rows = rubric.map(function(r){
-        return '<tr>'
-          + '<td class="py-2 pr-4">'+(r.name||'—')+'</td>'
-          + '<td class="py-2 pr-4">'+(r.score!=null? Number(r.score).toFixed(2) : '—')+'</td>'
-          + '<td class="py-2 pr-4">'+(r.obs||'')+'</td>'
-          + '</tr>';
-      }).join('');
-      htmlSet('rubricTbl', rows);
-    }
-
-    function renderHealth(list){
-      if (!Array.isArray(list)) { htmlSet('health',''); return; }
-      var rows = list.map(function(h){
-        var sev = (h.severity||'descartado');
-        var icon = sev==='descartado' ? '✅' : '⚠️';
-        var txt = sev==='descartado' ? 'Descartado' : 'Sospecha';
-        return '<li>'+icon+' <span class="font-medium">'+h.name+':</span> '+txt+'</li>';
-      }).join('');
-      htmlSet('health', rows);
-    }
-
-    function renderBreed(b){
-      if (!b) { textSet('breed','—'); return; }
-      var conf = (b.confidence!=null)? Number(b.confidence).toFixed(2) : '';
-      var extra = b.explanation || b.notes || '';
-      htmlSet('breed', '<div><span class="font-semibold">'+(b.name||'—')+'</span>'+(conf? ' · conf='+conf:'')+'</div>'+(extra?'<div class="text-gray-600">'+extra+'</div>':''));
-    }
-
-    function renderQC(qc){
-      if (!qc) return;
-      textSet('stabPill', 'Estabilidad: '+(qc.stability||'—'));
-      textSet('visBox',  'Visible: '+Math.round(100*(qc.visible_ratio||0))+'%');
-      textSet('auctionPill', qc.auction_mode ? 'Modo subasta' : 'Modo normal');
-    }
-
-    function render(d){
-      renderTabs(d.decision_level);
-      renderScoreCards(d);
-      renderRubric(d.rubric);
-      renderHealth(d.health);
-      renderBreed(d.breed);
-      renderQC(d.qc);
-
-      // reasons
-      var r = (d.reasons||[]).map(function(x){ return '<li>• '+x+'</li>'; }).join('');
-      htmlSet('reasons', r);
-
-      // preview
-      if (d.preview){
-        var prev = document.getElementById('preview');
-        if (prev) prev.src = d.preview;
-      }
-    }
-
-    async function apiFetch(path, opts){
-      const res = await fetch(path, opts||{});
-      if (!res.ok) throw new Error('HTTP '+res.status);
-      return res.json();
-    }
-
-    document.addEventListener('DOMContentLoaded', function(){
-      var input = document.getElementById('file');
-      var preview = document.getElementById('preview');
-      input.addEventListener('change', function(ev){
-        const f = ev.target.files && ev.target.files[0];
-        if (!f) return;
-        window.currentFile = f;
-        const r = new FileReader();
-        r.onload = function(){ preview.src = r.result; };
-        r.readAsDataURL(f);
-      });
-
-      var btn = document.getElementById('btnEval');
-      btn.addEventListener('click', async function(){
-        var file = window.currentFile;
-        if (!file){ document.getElementById('err').textContent='Selecciona una imagen.'; return; }
-        btn.disabled = true;
-        document.getElementById('err').textContent='';
-        try{
-          var fd = new FormData();
-          fd.append('mode', document.getElementById('mode').value || 'levante');
-          fd.set('file', file, file.name);
-          var data = await apiFetch('/evaluate', { method:'POST', body: fd });
-          var payload = Array.isArray(data) ? (data[0] && data[0].result || data[0]) : data;
-          render(payload);
-        }catch(ex){
-          document.getElementById('err').textContent = ex.message || String(ex);
-        }finally{
-          btn.disabled = false;
-        }
-      });
-    });
-  </script>
+  <div class="card">
+    <h3>Resultado</h3>
+    <pre id="out">Sube una imagen para evaluar…</pre>
+  </div>
 </body>
 </html>
