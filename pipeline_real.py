@@ -57,41 +57,47 @@ def detect_health(img_bytes:bytes, metrics:Dict[str,Any])->List[Dict[str,Any]]:
 # ------------------ Raza con prompt oculto ------------------
 
 def _openai_available()->bool:
-    if os.getenv("BREED_DISABLED") == "1":
+    # Seguridad: por defecto DESACTIVADO salvo que el usuario ponga ENABLE_BREED=1
+    if os.getenv("ENABLE_BREED") != "1":  # default desactivado
         return False
     key = os.getenv("OPENAI_API_KEY") or os.getenv("AZURE_OPENAI_API_KEY")
     return bool(key)
 
-def _call_openai_chat_image(prompt:str, b64_image:str, timeout:float=10.0)->str:
-    from openai import OpenAI
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), base_url=os.getenv("OPENAI_BASE_URL"))
-    model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-    resp = client.chat.completions.create(
-        model=model,
-        temperature=0.2,
-        timeout=timeout,
-        messages=[
+def _call_openai_chat_image(prompt:str, b64_image:str, timeout:float=8.0)->str:
+    # Usamos requests para controlar timeout siempre
+    api_key = os.getenv("OPENAI_API_KEY")
+    base = os.getenv("OPENAI_BASE_URL","https://api.openai.com/v1")
+    model = os.getenv("OPENAI_MODEL","gpt-4o-mini")
+    url = f"{base}/chat/completions"
+    headers = {"Content-Type":"application/json","Authorization":f"Bearer {api_key}"}
+    body = {
+        "model": model,
+        "temperature": 0.2,
+        "messages":[
             {"role":"system","content": prompt},
             {"role":"user","content":[
                 {"type":"text","text":"Analiza esta imagen y responde SOLO el JSON pedido."},
                 {"type":"image_url","image_url":{"url": f"data:image/jpeg;base64,{b64_image}"}}
             ]}
         ]
-    )
-    return resp.choices[0].message.content or ""
+    }
+    r = requests.post(url, headers=headers, json=body, timeout=timeout)
+    r.raise_for_status()
+    data = r.json()
+    return data["choices"][0]["message"]["content"]
 
-def _call_azure_openai_chat_image(prompt:str, b64_image:str, timeout:float=10.0)->str:
+def _call_azure_openai_chat_image(prompt:str, b64_image:str, timeout:float=8.0)->str:
     endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
     deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
-    api_version = os.getenv("OPENAI_API_VERSION", "2024-02-15-preview")
+    api_version = os.getenv("OPENAI_API_VERSION","2024-02-15-preview")
     api_key = os.getenv("AZURE_OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
     if not (endpoint and deployment and api_key):
         raise RuntimeError("azure_openai_env_incompleto")
     url = f"{endpoint}/openai/deployments/{deployment}/chat/completions?api-version={api_version}"
-    headers = {"Content-Type":"application/json", "api-key": api_key}
+    headers = {"Content-Type":"application/json","api-key": api_key}
     body = {
         "temperature": 0.2,
-        "messages": [
+        "messages":[
             {"role":"system","content": prompt},
             {"role":"user","content":[
                 {"type":"text","text":"Analiza esta imagen y responde SOLO el JSON pedido."},
@@ -118,8 +124,9 @@ def _parse_breed_json(text:str)->Dict[str,Any]:
     return obj
 
 def run_breed_prompt(img_bytes:bytes)->Dict[str,Any]:
+    # Si no está habilitado explícitamente, devolvemos fallback inmediato
     if not _openai_available():
-        return {"name":"Cruza (indicus/taurus posible)","confidence":0.55,"explanation":"Fallback sin proveedor LLM"}
+        return {"name":"Cruza (indicus/taurus posible)","confidence":0.55,"explanation":"Breed OFF (ENABLE_BREED!=1)"}
     b64 = base64.b64encode(img_bytes).decode("utf-8")
     provider = (os.getenv("LLM_PROVIDER") or "openai").lower()
     system_prompt = (
@@ -135,9 +142,9 @@ def run_breed_prompt(img_bytes:bytes)->Dict[str,Any]:
     )
     try:
         if provider == "azure":
-            text = _call_azure_openai_chat_image(system_prompt, b64, timeout=10.0)
+            text = _call_azure_openai_chat_image(system_prompt, b64, timeout=8.0)
         else:
-            text = _call_openai_chat_image(system_prompt, b64, timeout=10.0)
+            text = _call_openai_chat_image(system_prompt, b64, timeout=8.0)
         obj = _parse_breed_json(text)
         breed = str(obj.get("breed","")).strip() or "cruza"
         is_cross = bool(obj.get("is_cross", False))
@@ -179,7 +186,7 @@ def format_output(agg:Dict[str,Any], health:List[Dict[str,Any]], breed:Dict[str,
         "risk": risk,
         "posterior_bonus": agg.get("posterior_bonus",0),
         "global_conf": 0.9,
-        "notes": "Evaluación pipeline real (v39e, prompt corregido).",
+        "notes": "Evaluación pipeline real (v39f watchdog/logs).",
         "qc": {**agg.get("qc",{}), "auction_mode": (mode=='subasta')},
         "rubric": agg["rubric"],
         "reasons": reasons,
