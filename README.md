@@ -1,33 +1,31 @@
-# GanadoBravo v39c — OpenAI prompt oculto para raza
+# GanadoBravo v39d (robusto contra 502)
 
-## Endpoints
-- `GET /` UI simple
-- `GET /api/health` ping
-- `POST /evaluate` y `POST /api/eval` aceptan `file` (imagen) y `mode` (`levante` | `subasta`).
+## Claves para evitar 502
+- **Timeouts cortos** en llamadas a OpenAI/Azure (10s) con *fallback* inmediato.
+- **Si no configuras API key**, la raza hace *fallback al instante* (sin red).
+- **Deshabilitar raza temporalmente**: `BREED_DISABLED=1` (garantiza latencia mínima).
+- **Límite de imagen**: 8 MB (responde 413 si se excede).
 
-## Variables de entorno (elige proveedor)
-### OpenAI (recomendado)
-- `OPENAI_API_KEY` = tu API key
-- `OPENAI_MODEL` (opcional, por defecto `gpt-4o-mini`)
-- `OPENAI_BASE_URL` (opcional, para proxies compatibles)
+## Env
+OpenAI:
+- `OPENAI_API_KEY` (opcional)
+- `OPENAI_MODEL` (default `gpt-4o-mini`)
+- `OPENAI_BASE_URL` (opcional)
 
-### Azure OpenAI (opcional)
+Azure OpenAI:
 - `LLM_PROVIDER=azure`
-- `AZURE_OPENAI_ENDPOINT` (p.ej. https://TU-RECURSO.openai.azure.com)
-- `AZURE_OPENAI_DEPLOYMENT` (nombre del deployment del modelo con soporte visión)
-- `AZURE_OPENAI_API_KEY`
-- `OPENAI_API_VERSION=2024-02-15-preview` (o la versión que uses)
+- `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT`, `AZURE_OPENAI_API_KEY`
+- `OPENAI_API_VERSION=2024-02-15-preview`
 
-> Si no hay configuración válida, el sistema hace *fallback* seguro y devuelve una raza genérica.
+Control:
+- `BREED_DISABLED=1` → desactiva llamada al modelo (usa fallback local).
 
-## Ejecutar local
+## Run local
 ```bash
 pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
-# http://localhost:8000
 ```
 
-## Notas
-- Raza: se usa **prompt oculto** (system) que obliga salida en JSON y describe cues morfológicos a evaluar.
-- Salud: las **razones** ahora dicen “No se detectaron problemas de salud.” cuando todo el catálogo está **descartado**.
-- Métricas: la rúbrica siempre incluye **todas** las métricas morfológicas.
+## Endpoints
+- `GET /api/health` → {"ok":true,"version":"v39d"}
+- `POST /evaluate` o `/api/eval` → form-data: `file`, `mode`
