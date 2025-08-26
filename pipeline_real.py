@@ -54,17 +54,16 @@ def detect_health(img_bytes:bytes, metrics:Dict[str,Any])->List[Dict[str,Any]]:
         res.append({"name": name, "status": status})
     return res
 
-# ------------------ Raza con prompt oculto ------------------
+# ------------------ Raza con prompt oculto (triple-quoted) ------------------
 
 def _openai_available()->bool:
-    # Seguridad: por defecto DESACTIVADO salvo que el usuario ponga ENABLE_BREED=1
-    if os.getenv("ENABLE_BREED") != "1":  # default desactivado
+    # Por defecto desactivado salvo ENABLE_BREED=1
+    if os.getenv("ENABLE_BREED") != "1":
         return False
     key = os.getenv("OPENAI_API_KEY") or os.getenv("AZURE_OPENAI_API_KEY")
     return bool(key)
 
 def _call_openai_chat_image(prompt:str, b64_image:str, timeout:float=8.0)->str:
-    # Usamos requests para controlar timeout siempre
     api_key = os.getenv("OPENAI_API_KEY")
     base = os.getenv("OPENAI_BASE_URL","https://api.openai.com/v1")
     model = os.getenv("OPENAI_MODEL","gpt-4o-mini")
@@ -124,22 +123,22 @@ def _parse_breed_json(text:str)->Dict[str,Any]:
     return obj
 
 def run_breed_prompt(img_bytes:bytes)->Dict[str,Any]:
-    # Si no está habilitado explícitamente, devolvemos fallback inmediato
     if not _openai_available():
         return {"name":"Cruza (indicus/taurus posible)","confidence":0.55,"explanation":"Breed OFF (ENABLE_BREED!=1)"}
     b64 = base64.b64encode(img_bytes).decode("utf-8")
     provider = (os.getenv("LLM_PROVIDER") or "openai").lower()
-    system_prompt = (
-        "Eres un experto en razas bovinas. Identifica RAZA o ENRAZAMIENTO (cruza) "
-        "a partir de rasgos fenotípicos visibles (orejas, papada, giba/hump, línea dorsal, color/pelos, cara, cuernos, grupa). "
-        "Si detectas rasgos de Bos indicus (Brahman/Nelore/etc.), menciónalo.
-"
-        "Responde SOLO en JSON con este esquema:\n"
-        "{\n  \"breed\": \"<raza principal o 'cruza'>\",\n  \"is_cross\": true|false,\n"
-        "  \"dominant\": \"<raza dominante si es cruza o null>\",\n  \"confidence\": 0..1,\n"
-        "  \"explanation\": \"cues breves\"\n}\n"
-        "No agregues texto fuera del JSON. No inventes si la evidencia es insuficiente (usa confianza baja)."
-    )
+    system_prompt = """Eres un experto en razas bovinas. Identifica RAZA o ENRAZAMIENTO (cruza)
+a partir de rasgos fenotípicos visibles (orejas, papada, giba/hump, línea dorsal, color/pelos, cara, cuernos, grupa).
+Si detectas rasgos de Bos indicus (Brahman/Nelore/etc.), menciónalo.
+Responde SOLO en JSON con este esquema:
+{
+  "breed": "<raza principal o 'cruza'>",
+  "is_cross": true|false,
+  "dominant": "<raza dominante si es cruza o null>",
+  "confidence": 0..1,
+  "explanation": "cues breves usados para decidir"
+}
+No agregues texto fuera del JSON. No inventes si la evidencia es insuficiente (usa confianza baja)."""
     try:
         if provider == "azure":
             text = _call_azure_openai_chat_image(system_prompt, b64, timeout=8.0)
@@ -186,7 +185,7 @@ def format_output(agg:Dict[str,Any], health:List[Dict[str,Any]], breed:Dict[str,
         "risk": risk,
         "posterior_bonus": agg.get("posterior_bonus",0),
         "global_conf": 0.9,
-        "notes": "Evaluación pipeline real (v39f watchdog/logs).",
+        "notes": "Evaluación pipeline real (v39g, triple-quoted prompt).",
         "qc": {**agg.get("qc",{}), "auction_mode": (mode=='subasta')},
         "rubric": agg["rubric"],
         "reasons": reasons,
