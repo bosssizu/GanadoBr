@@ -1,31 +1,17 @@
-# GanadoBravo v39d (robusto contra 502)
+# GanadoBravo v39e — prompt corregido (Railway-safe)
 
-## Claves para evitar 502
-- **Timeouts cortos** en llamadas a OpenAI/Azure (10s) con *fallback* inmediato.
-- **Si no configuras API key**, la raza hace *fallback al instante* (sin red).
-- **Deshabilitar raza temporalmente**: `BREED_DISABLED=1` (garantiza latencia mínima).
-- **Límite de imagen**: 8 MB (responde 413 si se excede).
+Cambios:
+- Arreglado `SyntaxError` por string sin cerrar en el prompt oculto.
+- Mantiene timeouts cortos y *fallback* seguro para evitar 502.
+- Razones de salud corregidas cuando todo está descartado.
 
-## Env
-OpenAI:
-- `OPENAI_API_KEY` (opcional)
-- `OPENAI_MODEL` (default `gpt-4o-mini`)
-- `OPENAI_BASE_URL` (opcional)
+Env claves:
+- `BREED_DISABLED=1` para desactivar la llamada al modelo (pruebas sin red).
+- `OPENAI_API_KEY` (o Azure: `LLM_PROVIDER=azure` + variables correspondientes).
+- `OPENAI_MODEL` opcional (`gpt-4o-mini` por defecto).
 
-Azure OpenAI:
-- `LLM_PROVIDER=azure`
-- `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_DEPLOYMENT`, `AZURE_OPENAI_API_KEY`
-- `OPENAI_API_VERSION=2024-02-15-preview`
-
-Control:
-- `BREED_DISABLED=1` → desactiva llamada al modelo (usa fallback local).
-
-## Run local
+Run local:
 ```bash
 pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
 ```
-
-## Endpoints
-- `GET /api/health` → {"ok":true,"version":"v39d"}
-- `POST /evaluate` o `/api/eval` → form-data: `file`, `mode`

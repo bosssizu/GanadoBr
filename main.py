@@ -3,12 +3,11 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
-from starlette.requests import Request
 from time import time
 
 from pipeline_real import run_metrics_pass, aggregate_metrics, detect_health, run_breed_prompt, format_output
 
-app = FastAPI(title="GanadoBravo API", version="v39d")
+app = FastAPI(title="GanadoBravo API", version="v39e")
 
 app.add_middleware(
     CORSMiddleware,
@@ -27,12 +26,11 @@ def index():
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "version": "v39d"}
+    return {"ok": True, "version": "v39e"}
 
 MAX_IMAGE_MB = 8
 
 def _evaluate_internal(img_bytes: bytes, mode: str):
-    # Simple guard
     if len(img_bytes) > MAX_IMAGE_MB*1024*1024:
         raise HTTPException(status_code=413, detail=f"Imagen supera {MAX_IMAGE_MB} MB")
     t0 = time()
@@ -40,7 +38,7 @@ def _evaluate_internal(img_bytes: bytes, mode: str):
     m2 = run_metrics_pass(img_bytes, mode, pass_id=2)
     agg = aggregate_metrics(m1, m2)
     health = detect_health(img_bytes, agg)
-    breed = run_breed_prompt(img_bytes)  # non-blocking inside (fast fallback)
+    breed = run_breed_prompt(img_bytes)
     out = format_output(agg, health, breed, mode)
     out["debug"] = {"latency_ms": int((time()-t0)*1000)}
     return out
