@@ -1,5 +1,4 @@
-
-import os, io
+import os
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -7,9 +6,8 @@ from starlette.middleware.cors import CORSMiddleware
 
 from pipeline_real import run_metrics_pass, aggregate_metrics, detect_health, run_breed_prompt, format_output
 
-app = FastAPI(title="GanadoBravo API", version="v39b")
+app = FastAPI(title="GanadoBravo API", version="v39c")
 
-# CORS for simple deployments
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -27,7 +25,7 @@ def index():
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "version": "v39b"}
+    return {"ok": True, "version": "v39c"}
 
 def _evaluate_internal(img_bytes: bytes, mode: str):
     m1 = run_metrics_pass(img_bytes, mode, pass_id=1)
@@ -38,19 +36,16 @@ def _evaluate_internal(img_bytes: bytes, mode: str):
     out = format_output(agg, health, breed, mode)
     return out
 
-# Two endpoints to avoid frontend/backend mismatch
 @app.post("/evaluate")
 async def evaluate_compat(file: UploadFile = File(...), mode: str = Form("levante")):
     try:
         img_bytes = await file.read()
         if not img_bytes:
             raise HTTPException(status_code=400, detail="Archivo vacío")
-        out = _evaluate_internal(img_bytes, mode)
-        return JSONResponse(out)
+        return JSONResponse(_evaluate_internal(img_bytes, mode))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/eval")
 async def evaluate_api(file: UploadFile = File(...), mode: str = Form("levante")):
     return await evaluate_compat(file, mode)
-

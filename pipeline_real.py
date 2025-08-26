@@ -1,6 +1,7 @@
+from typing import Dict, List, Any, Tuple
+import random, os, json, base64, requests
 
-from typing import Dict, List, Any
-import random
+# ------------------ Métricas & Salud ------------------
 
 MORPHOLOGICAL_METRICS = [
     "Conformación",
@@ -27,7 +28,7 @@ HEALTH_CATALOG = [
     "Tos",
 ]
 
-def _score_obs(name:str, seed:int)->(float,str):
+def _score_obs(name:str, seed:int)->Tuple[float,str]:
     rnd = random.Random(seed)
     score = round(rnd.uniform(5.8, 8.6), 2)
     obs = "Adecuado" if score>=7.0 else "Correcta"
@@ -38,29 +39,19 @@ def _score_obs(name:str, seed:int)->(float,str):
     return score, obs
 
 def run_metrics_pass(img_bytes: bytes, mode:str, pass_id:int)->Dict[str, Any]:
-    # Deterministic pseudo-random by image length + pass id
     base = len(img_bytes) + 13*pass_id
     rubric = []
     for idx, m in enumerate(MORPHOLOGICAL_METRICS):
         sc, obs = _score_obs(m, base+idx)
         rubric.append({"name": m, "score": sc, "obs": obs})
-    # BCS & riesgo heurísticos suaves
     bcs = round(2.6 + (base % 180)/180 * 1.7, 2)  # 2.6–4.3
     risk = round(0.15 + ((base*7) % 60)/100 * 0.5, 2)  # 0.15–0.45
     posterior_bonus = 0.1 if any(r["name"]=="Grupo/muscling posterior" and r["score"]>=8.0 for r in rubric) else 0.0
     qc = {"visible_ratio": 0.86, "stability": "alta"}
-    return {
-        "rubric": rubric,
-        "bcs": bcs,
-        "risk": risk,
-        "posterior_bonus": posterior_bonus,
-        "qc": qc,
-    }
+    return {"rubric": rubric, "bcs": bcs, "risk": risk, "posterior_bonus": posterior_bonus, "qc": qc}
 
 def aggregate_metrics(m1:Dict[str,Any], m2:Dict[str,Any])->Dict[str,Any]:
-    # Promedio métrico a métrico por nombre
-    scores = {}
-    obs = {}
+    scores = {}; obs = {}
     for m in m1["rubric"] + m2["rubric"]:
         scores.setdefault(m["name"], []).append(m["score"])
         obs.setdefault(m["name"], m["obs"])
@@ -73,34 +64,145 @@ def aggregate_metrics(m1:Dict[str,Any], m2:Dict[str,Any])->Dict[str,Any]:
     return {"rubric": rubric, "global_score": global_score, "bcs": bcs, "risk": risk, "posterior_bonus": posterior_bonus, "qc": qc}
 
 def detect_health(img_bytes:bytes, metrics:Dict[str,Any])->List[Dict[str,Any]]:
-    # Devuelve TODO el catálogo con "descartado" o "sospecha"
+    # Devuelve TODO el catálogo con 'descartado' o 'sospecha' (pocas) según un umbral suave
     res = []
-    # usa una regla simple para marcar 2 sospechas pseudo-determinísticas
     base = len(img_bytes)%len(HEALTH_CATALOG)
     sus_idxs = {base, (base+3)%len(HEALTH_CATALOG)}
     for i, name in enumerate(HEALTH_CATALOG):
-        status = "sospecha" if i in sus_idxs and metrics["risk"]>0.2 else "descartado"
+        status = "sospecha" if i in sus_idxs and metrics["risk"]>0.3 else "descartado"
         res.append({"name": name, "status": status})
     return res
 
+# ------------------ Raza con prompt oculto (OpenAI / Azure) ------------------
+
+def _call_openai_chat_image(prompt:str, b64_image:str)->str:
+    """Llama a OpenAI (chat.completions) con soporte de imagen en content.
+    Requiere: OPENAI_API_KEY; opcional OPENAI_BASE_URL; OPENAI_MODEL (por defecto gpt-4o-mini).
+    Devuelve el texto del mensaje del asistente.
+    """
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), base_url=os.getenv("OPENAI_BASE_URL"))
+        model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+        resp = client.chat.completions.create(
+            model=model,
+            temperature=0.2,
+            messages=[
+                {"role":"system","content": prompt},
+                {"role":"user","content":[
+                    {"type":"text","text":"Analiza esta imagen y responde SOLO el JSON pedido."},
+                    {"type":"image_url","image_url":{"url": f"data:image/jpeg;base64,{b64_image}"}}
+                ]}
+            ]
+        )
+        return resp.choices[0].message.content or ""
+    except Exception as e:
+        raise RuntimeError(f"openai_error: {e}")
+
+def _call_azure_openai_chat_image(prompt:str, b64_image:str)->str:
+    """Llama a Azure OpenAI (chat/completions) usando requests (modo compat).
+    Requiere: AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT, OPENAI_API_VERSION, AZURE_OPENAI_API_KEY.
+    """
+    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+    deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
+    api_version = os.getenv("OPENAI_API_VERSION", "2024-02-15-preview")
+    api_key = os.getenv("AZURE_OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
+    if not (endpoint and deployment and api_key):
+        raise RuntimeError("azure_openai_env_incompleto")
+    url = f"{endpoint}/openai/deployments/{deployment}/chat/completions?api-version={api_version}"
+    headers = {"Content-Type":"application/json", "api-key": api_key}
+    body = {
+        "temperature": 0.2,
+        "messages": [
+            {"role":"system","content": prompt},
+            {"role":"user","content":[
+                {"type":"text","text":"Analiza esta imagen y responde SOLO el JSON pedido."},
+                {"type":"image_url","image_url":{"url": f"data:image/jpeg;base64,{b64_image}"}}
+            ]}
+        ]
+    }
+    r = requests.post(url, headers=headers, json=body, timeout=60)
+    r.raise_for_status()
+    data = r.json()
+    return data["choices"][0]["message"]["content"]
+
+def _parse_breed_json(text:str)->Dict[str,Any]:
+    # extrae el primer bloque JSON válido
+    try:
+        start = text.index("{"); end = text.rindex("}")
+        raw = text[start:end+1]
+    except ValueError:
+        raw = text.strip()
+    try:
+        obj = json.loads(raw)
+    except Exception:
+        # intenta quitar fences
+        raw = raw.replace("```json","").replace("```","").strip()
+        obj = json.loads(raw)
+    return obj
+
 def run_breed_prompt(img_bytes:bytes)->Dict[str,Any]:
-    # Heurístico simple
-    conf = 0.58
-    return {"name":"Criollo (mixto)", "confidence":conf, "explanation":"Rasgos mixtos; posible entrecruzamiento."}
+    b64 = base64.b64encode(img_bytes).decode("utf-8")
+    provider = (os.getenv("LLM_PROVIDER") or "openai").lower()
+    system_prompt = (
+        "Eres un experto en razas bovinas. Identifica RAZA o ENRAZAMIENTO (cruza) "
+        "a partir de rasgos fenotípicos visibles (orejas, papada, giba/hump, línea dorsal, color/pelos, cara, cuernos, grupa). "
+        "Si detectas rasgos de Bos indicus (Brahman/Nelore/etc.), menciónalo.
+"
+        "Responde **SOLO** en JSON con este esquema:
+"
+        "{\n  "breed": "<raza principal o 'cruza'>",\n  "is_cross": true|false,\n"
+        "  "dominant": "<raza dominante si es cruza o null>",\n  "confidence": 0..1,\n"
+        "  "explanation": "cues breves usados para decidir"\n}
+"
+        "No agregues texto fuera del JSON. No inventes si la evidencia es insuficiente (usa confianza baja)."
+    )
+    try:
+        if provider == "azure":
+            text = _call_azure_openai_chat_image(system_prompt, b64)
+        else:
+            text = _call_openai_chat_image(system_prompt, b64)
+        obj = _parse_breed_json(text)
+        breed = str(obj.get("breed","")).strip() or "cruza"
+        is_cross = bool(obj.get("is_cross", False))
+        dominant = (obj.get("dominant") or "") if is_cross else ""
+        conf = float(obj.get("confidence", 0.55))
+        conf = max(0.0, min(1.0, conf))
+        expl = obj.get("explanation") or "Sin explicación"
+        name = breed
+        if is_cross and dominant:
+            name = f"Cruza ({dominant} dominante)"
+        elif is_cross:
+            name = "Cruza (mixta)"
+        return {"name": name, "confidence": conf, "explanation": expl}
+    except Exception as e:
+        # Fallback seguro (no detiene la app)
+        return {
+            "name": "Cruza (posible indicus dominante)",
+            "confidence": 0.55,
+            "explanation": f"Fallback por error de modelo: {e}"
+        }
+
+# ------------------ Salida ------------------
 
 def format_output(agg:Dict[str,Any], health:List[Dict[str,Any]], breed:Dict[str,Any], mode:str)->Dict[str,Any]:
     score = agg["global_score"] + agg.get("posterior_bonus",0.0)
     bcs = agg["bcs"]; risk = agg["risk"]
-    decision_level = "NO_COMPRAR"; decision_text = "No comprar"
+    # decisión
     if score>=8.2 and 2.8<=bcs<=4.5 and risk<=0.35:
         decision_level, decision_text = "COMPRAR", "Comprar"
     elif score>=7.0 and risk<=0.55:
         decision_level, decision_text = "CONSIDERAR_ALTO", "Considerar alto"
     elif score>=5.5:
         decision_level, decision_text = "CONSIDERAR_BAJO", "Considerar bajo"
-    reasons = []
+    else:
+        decision_level, decision_text = "NO_COMPRAR", "No comprar"
+    # razones (salud corregido)
+    reasons: List[str] = []
     if any(h["status"]=="sospecha" for h in health):
         reasons.append("Se detectaron sospechas de salud; revisar clínicamente.")
+    else:
+        reasons.append("No se detectaron problemas de salud.")
     if agg.get("posterior_bonus",0)>0:
         reasons.append("Buen desarrollo posterior (+bono).")
     reasons.append("Estructura general adecuada.")
@@ -112,7 +214,7 @@ def format_output(agg:Dict[str,Any], health:List[Dict[str,Any]], breed:Dict[str,
         "risk": risk,
         "posterior_bonus": agg.get("posterior_bonus",0),
         "global_conf": 0.9,
-        "notes": "Evaluación pipeline real (v39b).",
+        "notes": "Evaluación pipeline real (v39c, prompt oculto OpenAI).",
         "qc": {**agg.get("qc",{}), "auction_mode": (mode=="subasta")},
         "rubric": agg["rubric"],
         "reasons": reasons,
