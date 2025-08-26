@@ -1,323 +1,253 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>GanadoBravo — Evaluación</title>
-  <meta name="theme-color" content="#0B1220"/>
-  <meta name="api-base" content="">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    :root{ color-scheme: light; }
     body{ background:#f6f8fb; }
     .card{ background:#fff; border-radius:1rem; box-shadow:0 6px 20px rgba(17,24,39,.06); }
     .pill{ display:inline-block; padding:.25rem .62rem; border-radius:9999px; font-size:.75rem; font-weight:600; }
     .pill-green{ background:#e9f9ee; color:#0a7a3b; }
     .pill-amber{ background:#fff4e5; color:#8a5300; }
-    .pill-red{ background:#feeaea; color:#9b1c1c; }
-    .sticky-cta{ position:sticky; bottom:0; background:linear-gradient(180deg, rgba(246,248,251,.0), rgba(246,248,251,1) 30%); padding-top:.5rem; }
+    .pill-gray{ background:#f0f2f6; color:#374151; }
+    .btn{ background:#0b1220; color:#fff; border-radius:.75rem; padding:.65rem .9rem; font-weight:600; }
+    .btn[disabled]{ opacity:.6; cursor:not-allowed; }
+    .tab{ padding:.4rem .8rem; border-radius:.6rem; cursor:pointer; }
+    .tab-active{ background:#0b1220; color:#fff; }
   </style>
 </head>
 <body class="min-h-screen">
-  <header class="bg-white/90 backdrop-blur border-b border-gray-200 sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-      <h1 class="text-lg md:text-2xl font-bold tracking-tight text-gray-900">GanadoBravo — Evaluación</h1>
-      <div id="err" class="text-sm text-red-600 font-medium"></div>
-    </div>
-  </header>
+  <div class="max-w-6xl mx-auto p-4 md:p-6">
+    <h1 class="text-2xl font-bold text-gray-900">GanadoBravo — Evaluación</h1>
 
-  <main class="max-w-7xl mx-auto px-4 py-4 md:py-8 grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-    <section class="space-y-4 lg:col-span-1">
-      <div class="card p-4 md:p-5">
-        <h2 class="text-base font-semibold text-gray-900 mb-3">Entrada</h2>
-        <div class="space-y-3">
-          <label class="block">
-            <span class="text-sm text-gray-700">Imagen (JPG/PNG)</span>
-            <input id="file" type="file" accept="image/*" class="mt-1 w-full text-sm file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-gray-900 file:text-white hover:file:opacity-90" />
-          </label>
-          <label class="block">
-            <span class="text-sm text-gray-700">Modo</span>
-            <select id="mode" class="mt-1 w-full rounded-lg border-gray-300 focus:ring-2 focus:ring-gray-900">
+    <div class="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <aside class="space-y-4">
+        <div class="card p-4">
+          <div class="text-sm text-gray-700">Entrada</div>
+          <div class="mt-2">
+            <input id="file" type="file" accept="image/*" class="block w-full"/>
+          </div>
+          <div class="mt-3">
+            <label class="block text-sm text-gray-600 mb-1">Modo</label>
+            <select id="mode" class="w-full border rounded-lg p-2">
               <option value="levante">Levante</option>
-              <option value="engorde">Engorde</option>
-              <option value="vaca_flaca">Vaca flaca</option>
+              <option value="subasta">Subasta</option>
             </select>
-          </label>
+          </div>
+          <button id="btnEval" class="mt-4 btn w-full">Evaluar</button>
+          <div id="err" class="mt-2 text-sm text-red-600"></div>
         </div>
 
-        <div class="sticky-cta mt-4 md:mt-6">
-          <button id="evaluateBtn" type="button" class="w-full py-3 rounded-xl bg-gray-900 text-white font-semibold hover:opacity-90 active:opacity-100 transition">
-            Evaluar
-          </button>
-          <p id="meta" class="mt-2 text-xs text-gray-500 text-center">—</p>
-          <div id="netErr" class="hidden mt-2 p-3 rounded-lg bg-red-50 text-red-700 text-sm"></div>
+        <div class="card p-4">
+          <div class="text-sm text-gray-700 mb-2">Vista previa</div>
+          <img id="preview" class="w-full aspect-square object-cover rounded-lg bg-gray-100" alt="preview"/>
         </div>
-      </div>
 
-      <div class="card p-4 md:p-5">
-        <div class="text-sm text-gray-600 mb-2">Vista previa</div>
-        <div class="w-full aspect-[4/3] bg-gray-100 rounded-xl flex items-center justify-center overflow-hidden">
-          <img id="preview" class="max-h-full max-w-full object-contain" alt="vista previa" />
+        <div class="card p-4">
+          <div class="text-sm text-gray-700">Notas y razones</div>
+          <ul id="reasons" class="mt-2 list-disc list-inside text-sm text-gray-700"></ul>
         </div>
-      </div>
+      </aside>
 
-      <div class="card p-4 md:p-5">
-        <h3 class="font-semibold text-gray-900 mb-2">Notas y razones</h3>
-        <ul id="reasons" class="list-disc list-inside text-sm text-gray-700 space-y-1"></ul>
-      </div>
-    </section>
-
-    <section class="lg:col-span-2 space-y-4">
-      <div class="card p-4 md:p-5">
-        <div class="flex flex-wrap items-center gap-2 text-sm">
-          <span class="text-gray-500">Calidad de entrada:</span>
-          <span id="stabPill" class="pill">—</span>
-          <span id="auctionPill" class="pill">—</span>
+      <section class="lg:col-span-2 space-y-4">
+        <div class="card p-4">
+          <div class="flex items-center gap-2 text-sm">
+            <span class="text-gray-500">Calidad de entrada:</span>
+            <span id="stabPill" class="pill pill-gray">—</span>
+            <span id="visBox" class="pill pill-gray">—</span>
+            <span id="auctionPill" class="pill pill-gray">—</span>
+          </div>
         </div>
-        <div id="visBox" class="mt-3 text-sm text-gray-700"></div>
-      </div>
 
-      <div class="card p-4 md:p-5">
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-          <h2 class="text-xl font-semibold text-gray-900">Resultado</h2>
-          <div class="text-sm text-gray-600">Presentación optimizada para móviles</div>
+        <div class="card p-4">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+            <h2 class="text-xl font-semibold text-gray-900">Resultado</h2>
+            <div class="flex gap-1" id="tabs"></div>
+          </div>
+          <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4" id="scoreCards"></div>
         </div>
-        <div class="mb-3" id="decisionStrip"></div>
-        <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4" id="scoreCards"></div>
-      </div>
 
-      <div id="rubricCard" class="card p-3 md:p-5">
-        <div class="flex items-center justify-between gap-2">
-          <h3 class="font-semibold text-gray-900">Rúbrica detallada</h3>
-          <span class="text-xs text-gray-500">Se actualiza con cada evaluación</span>
+        <div class="card p-3 md:p-5">
+          <div class="flex items-center justify-between">
+            <h3 class="font-semibold">Rúbrica detallada</h3>
+            <span class="text-xs text-gray-500">Se actualiza con cada evaluación</span>
+          </div>
+          <div class="overflow-x-auto mt-3">
+            <table class="min-w-full text-sm">
+              <thead class="text-left text-gray-600">
+                <tr>
+                  <th class="py-2 pr-4">Métrica</th>
+                  <th class="py-2 pr-4">Puntaje</th>
+                  <th class="py-2 pr-4">Observaciones</th>
+                </tr>
+              </thead>
+              <tbody id="rubricTbl" class="align-top text-gray-800"></tbody>
+            </table>
+          </div>
         </div>
-        <div class="overflow-x-auto mt-3">
-          <table class="min-w-full text-sm">
-            <thead class="text-left text-gray-600">
-              <tr>
-                <th class="py-2 pr-4">Métrica</th>
-                <th class="py-2 pr-4">Puntaje</th>
-                <th class="py-2">Observaciones</th>
-              </tr>
-            </thead>
-            <tbody id="rubricTbl" class="align-top text-gray-800"></tbody>
-          </table>
+
+        <div class="card p-4">
+          <div class="text-sm font-semibold">Salud</div>
+          <ul id="health" class="mt-2 space-y-1 text-sm text-gray-800"></ul>
         </div>
-      </div>
 
-      <div class="card p-4 md:p-5">
-        <h3 class="font-semibold text-gray-900">Salud</h3>
-        <div id="healthBox" class="mt-2 text-sm text-gray-800"></div>
-      </div>
-
-      <div class="card p-4 md:p-5">
-        <h3 class="font-semibold text-gray-900">Raza</h3>
-        <div id="breedBox" class="mt-2 text-sm text-gray-800"></div>
-      </div>
-    </section>
-  </main>
+        <div class="card p-4">
+          <div class="text-sm font-semibold">Raza</div>
+          <div id="breed" class="mt-2 text-sm text-gray-800">—</div>
+        </div>
+      </section>
+    </div>
+  </div>
 
   <script>
-  function htmlSet(id, html){ var el=document.getElementById(id); if(el) el.innerHTML=html; }
-  function safeSet(id, txt){ var el=document.getElementById(id); if(el) el.textContent=txt; }
+    function pillClass(val){
+      switch(val){
+        case 'Comprar': return 'pill pill-green';
+        case 'Considerar alto':
+        case 'Considerar bajo': return 'pill pill-amber';
+        case 'No comprar':
+        default: return 'pill pill-gray';
+      }
+    }
+    function htmlSet(id, html){ var el=document.getElementById(id); if(el) el.innerHTML=html; }
+    function textSet(id, txt){ var el=document.getElementById(id); if(el) el.textContent=txt; }
 
-  function pillClass(dec){
-    var d = String(dec||'').toUpperCase();
-    if (d.startsWith('COMPRAR')) return 'pill pill-green';
-    if (d.startsWith('CONSIDERAR')) return 'pill pill-amber';
-    return 'pill pill-red';
-  }
-  function barClass(dec){
-    var d = String(dec||'').toUpperCase();
-    if (d.startsWith('COMPRAR')) return 'bg-green-600';
-    if (d.startsWith('CONSIDERAR')) return 'bg-amber-600';
-    return 'bg-red-600';
-  }
+    function renderTabs(level){
+      var levels = [
+        ['NO_COMPRAR','No comprar'],
+        ['CONSIDERAR_BAJO','Considerar (bajo)'],
+        ['CONSIDERAR_ALTO','Considerar (alto)'],
+        ['COMPRAR','Comprar']
+      ];
+      var html = levels.map(function(L){
+        var active = (L[0]===level);
+        return '<div class="tab '+(active?'tab-active':'')+'">'+L[1]+'</div>';
+      }).join('');
+      htmlSet('tabs', html);
+    }
 
-  function renderDecisionStrip(d){
-    var level = String(d.decision_level||d.decision||'').toUpperCase();
-    var cats = [
-      {key:'NO_COMPRAR',        label:'No comprar'},
-      {key:'CONSIDERAR_BAJO',   label:'Considerar (bajo)'},
-      {key:'CONSIDERAR_ALTO',   label:'Considerar (alto)'},
-      {key:'COMPRAR',           label:'Comprar'}
-    ];
-    var items = cats.map(function(c){
-      var active = (level===c.key);
-      var cls = active ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-800';
-      return '<div class="px-3 py-2 rounded-lg text-xs font-medium '+cls+'">'+c.label+'</div>';
-    }).join('');
-    return '<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">'+items+'</div>';
-  }
-
-  function renderScorecards(d){
-    var items = [
-      { key:'decision_text',    label:'Decisión' },
-      { key:'global_score',     label:'Puntaje global' },
-      { key:'bcs',              label:'BCS' },
-      { key:'risk',             label:'Riesgo' },
-      { key:'posterior_bonus',  label:'Bono posterior' },
-      { key:'notes',            label:'Notas' }
-    ];
-    var cards = items.map(function(it){
-      var val = d[it.key];
-      if (val==null || val==='') return '';
-      if (it.key==='decision_text'){
+    function renderScoreCards(d){
+      var items = [
+        {label:'Decisión', key:'decision_text'},
+        {label:'Puntaje global', key:'global_score'},
+        {label:'BCS', key:'bcs'},
+        {label:'Riesgo', key:'risk'},
+        {label:'Bono posterior', key:'posterior_bonus'},
+        {label:'Notas', key:'notes'}
+      ];
+      var cards = items.map(function(it){
+        var val = d[it.key];
+        if (val==null) return '';
+        if (it.key==='decision_text'){
+          return '<div class="card p-4">'
+            + '<div class="text-sm text-gray-500">'+it.label+'</div>'
+            + '<div class="mt-1"><span class="'+pillClass(val)+'">'+val+'</span></div>'
+            + '</div>';
+        }
         return '<div class="card p-4">'
           + '<div class="text-sm text-gray-500">'+it.label+'</div>'
-          + '<div class="mt-1 flex items-center gap-2"><span class="'+pillClass(val)+'">'+val+'</span></div>'
-          + '<div class="mt-3 w-full h-2 rounded-full bg-gray-100 overflow-hidden"><div class="h-full '+barClass(val)+'" style="width:'+Math.min(100, Math.max(0, Number(d.global_score||0)*10))+'%"></div></div>'
+          + '<div class="mt-1 text-lg font-semibold">'+(typeof val==='number'? Number(val).toFixed(2) : val)+'</div>'
           + '</div>';
+      }).join('');
+      htmlSet('scoreCards', cards);
+    }
+
+    function renderRubric(rubric){
+      if (!Array.isArray(rubric)) { htmlSet('rubricTbl',''); return; }
+      var rows = rubric.map(function(r){
+        return '<tr>'
+          + '<td class="py-2 pr-4">'+(r.name||'—')+'</td>'
+          + '<td class="py-2 pr-4">'+(r.score!=null? Number(r.score).toFixed(2) : '—')+'</td>'
+          + '<td class="py-2 pr-4">'+(r.obs||'')+'</td>'
+          + '</tr>';
+      }).join('');
+      htmlSet('rubricTbl', rows);
+    }
+
+    function renderHealth(list){
+      if (!Array.isArray(list)) { htmlSet('health',''); return; }
+      var rows = list.map(function(h){
+        var sev = (h.severity||'descartado');
+        var icon = sev==='descartado' ? '✅' : '⚠️';
+        var txt = sev==='descartado' ? 'Descartado' : 'Sospecha';
+        return '<li>'+icon+' <span class="font-medium">'+h.name+':</span> '+txt+'</li>';
+      }).join('');
+      htmlSet('health', rows);
+    }
+
+    function renderBreed(b){
+      if (!b) { textSet('breed','—'); return; }
+      var conf = (b.confidence!=null)? Number(b.confidence).toFixed(2) : '';
+      var extra = b.explanation || b.notes || '';
+      htmlSet('breed', '<div><span class="font-semibold">'+(b.name||'—')+'</span>'+(conf? ' · conf='+conf:'')+'</div>'+(extra?'<div class="text-gray-600">'+extra+'</div>':''));
+    }
+
+    function renderQC(qc){
+      if (!qc) return;
+      textSet('stabPill', 'Estabilidad: '+(qc.stability||'—'));
+      textSet('visBox',  'Visible: '+Math.round(100*(qc.visible_ratio||0))+'%');
+      textSet('auctionPill', qc.auction_mode ? 'Modo subasta' : 'Modo normal');
+    }
+
+    function render(d){
+      renderTabs(d.decision_level);
+      renderScoreCards(d);
+      renderRubric(d.rubric);
+      renderHealth(d.health);
+      renderBreed(d.breed);
+      renderQC(d.qc);
+
+      // reasons
+      var r = (d.reasons||[]).map(function(x){ return '<li>• '+x+'</li>'; }).join('');
+      htmlSet('reasons', r);
+
+      // preview
+      if (d.preview){
+        var prev = document.getElementById('preview');
+        if (prev) prev.src = d.preview;
       }
-      return '<div class="card p-4">'
-        + '<div class="text-sm text-gray-500">'+it.label+'</div>'
-        + '<div class="mt-1 text-lg font-semibold text-gray-900">'+(typeof val==='number'? Number(val).toFixed(2) : val)+'</div>'
-        + '</div>';
-    }).join('');
-    htmlSet('scoreCards', cards);
-  }
-
-  function renderBreed(b){
-    if (!b) return '—';
-    var name = b.name || b.best || '—';
-    var conf = (b.confidence!=null)? Number(b.confidence).toFixed(2) : (b.conf||null);
-    var extra = b.explanation || b.notes || 'Posibles rasgos de entrecruzamiento / criollo';
-    return '<div class="flex flex-col gap-1">'
-      + '<div><span class="font-semibold">'+name+'</span>'+(conf!=null? ' · conf='+conf : '')+'</div>'
-      + (extra? '<div class="text-sm text-gray-600">'+extra+'</div>' : '')
-      + '</div>';
-  }
-
-  function renderHealth(health){
-    if (!Array.isArray(health) || !health.length){ return '—'; }
-    return '<ul class="space-y-1">' + health.map(function(h){
-      var sev = String(h.severity||'').toLowerCase();
-      var name = h.name || '—';
-      var status = (sev==='confirmada') ? 'Confirmada' : (sev==='alerta' ? 'Alerta' : 'Descartado');
-      var icon = (sev==='confirmada') ? '🛑' : (sev==='alerta' ? '⚠️' : '✓');
-      return '<li class="flex items-start"><span class="mr-2">'+icon+'</span><span><span class="font-medium">'+name+'</span> = '+status+'</span></li>';
-    }).join('') + '</ul>';
-  }
-
-  function render(d){
-    var qc = d.qc||{};
-    safeSet('meta', 'modo='+(d.mode||'-')+' · conf='+Number(d.global_conf||0).toFixed(2)+' · nivel='+(d.decision_level||'-'));
-    if (qc.visible_ratio!=null){
-      htmlSet('visBox', 'Porción visible: '+Math.round((qc.visible_ratio*100))+'%');
-    } else {
-      htmlSet('visBox', '');
     }
-    var stab = (qc.stability || qc.input_quality || '—');
-    var sp = document.getElementById('stabPill'); if (sp){ sp.className = 'pill ' + (stab==='alta'?'pill-green':(stab==='media'?'pill-amber':'pill-red')); sp.textContent = 'Estabilidad: '+stab; }
-    var ap = document.getElementById('auctionPill'); if (ap){ ap.className = 'pill pill-amber'; ap.textContent = 'Rúbrica: activa'; }
-    htmlSet('decisionStrip', renderDecisionStrip(d));
-    renderScorecards(d);
-    var rub = (d.rubric || []).map(function(item){
-      var score = Number(item.score); if (!isFinite(score)) score = 0;
-      return '<tr><td class="py-2 pr-4 font-medium">'+(item.name||'-')+'</td><td class="py-2 pr-4">'+score.toFixed(1)+'</td><td class="py-2">'+(item.obs||'')+'</td></tr>';
-    }).join('');
-    htmlSet('rubricTbl', rub);
-    var r = (d.reasons || []).map(function(t){ return '<li>'+t+'</li>'; }).join('');
-    htmlSet('reasons', r);
-    htmlSet('healthBox', renderHealth(d.health));
-    htmlSet('breedBox', renderBreed(d.breed || d.breed_ai || d.breeds));
-  }
 
-  function getApiBase(){
-    var m=document.querySelector('meta[name="api-base"]');
-    var v = (m && m.content)? m.content.trim() : '';
-    if (!v) return '';
-    if (v.endsWith('/')) v = v.slice(0,-1);
-    return v;
-  }
-
-  function showNetErr(msg){
-    var box = document.getElementById('netErr');
-    if (!box) return;
-    box.classList.remove('hidden');
-    box.innerHTML = msg;
-    console.error('[GanadoBravo] ', msg);
-  }
-  function clearNetErr(){
-    var box = document.getElementById('netErr');
-    if (!box) return;
-    box.classList.add('hidden');
-    box.textContent = '';
-  }
-
-  async function apiFetch(path, opts, timeoutMs){
-    if (opts===undefined) opts = {};
-    if (timeoutMs===undefined) timeoutMs = 30000;
-    var base = getApiBase();
-    var url = (base? base : '') + path;
-    var ctrl = new AbortController();
-    var t = setTimeout(function(){ try{ ctrl.abort('timeout'); }catch(_){} }, timeoutMs);
-    var res, txt;
-    try{
-      res = await fetch(url, Object.assign({ signal: ctrl.signal }, opts));
-      txt = await res.text();
-    }catch(e){
-      clearTimeout(t);
-      showNetErr('Network error: ' + (e && e.message ? e.message : e));
-      throw e;
+    async function apiFetch(path, opts){
+      const res = await fetch(path, opts||{});
+      if (!res.ok) throw new Error('HTTP '+res.status);
+      return res.json();
     }
-    clearTimeout(t);
-    if (!res.ok){
-      showNetErr('HTTP ' + res.status + ' on ' + path + (txt? (': ' + txt.slice(0,300)) : ''));
-      throw new Error('HTTP ' + res.status);
-    }
-    return txt;
-  }
 
-  document.addEventListener('DOMContentLoaded', function(){
-    var fileEl = document.getElementById('file');
-    var preview = document.getElementById('preview');
-    var btn = document.getElementById('evaluateBtn');
-    var err = document.getElementById('err');
-    var modeEl = document.getElementById('mode');
-
-    if (fileEl){
-      fileEl.addEventListener('change', function(ev){
-        window.currentFile = ev.target.files && ev.target.files[0] || null;
-        if (window.currentFile && preview){
-          var url = URL.createObjectURL(window.currentFile);
-          window.lastPreviewSrc = url;
-          preview.src = url;
-          preview.onload = function(){ try{ URL.revokeObjectURL(url); }catch(_){ } };
-        }
+    document.addEventListener('DOMContentLoaded', function(){
+      var input = document.getElementById('file');
+      var preview = document.getElementById('preview');
+      input.addEventListener('change', function(ev){
+        const f = ev.target.files && ev.target.files[0];
+        if (!f) return;
+        window.currentFile = f;
+        const r = new FileReader();
+        r.onload = function(){ preview.src = r.result; };
+        r.readAsDataURL(f);
       });
-    }
 
-    if (btn){
+      var btn = document.getElementById('btnEval');
       btn.addEventListener('click', async function(){
-        if (!window.currentFile){
-          if (err) err.textContent = 'Selecciona una imagen primero.';
-          return;
-        }
-        if (err) err.textContent = '';
-        clearNetErr();
+        var file = window.currentFile;
+        if (!file){ document.getElementById('err').textContent='Selecciona una imagen.'; return; }
         btn.disabled = true;
-        btn.textContent = 'Evaluando…';
-        var fd = new FormData();
-        fd.append('mode', (modeEl && modeEl.value) ? modeEl.value : 'levante');
-        fd.set('file', window.currentFile, window.currentFile.name);
+        document.getElementById('err').textContent='';
         try{
-          var txt = await apiFetch('/evaluate', { method:'POST', body: fd, cache:'no-store' }, 30000);
-          var data = JSON.parse(txt);
-          var payload = Array.isArray(data) ? ((data[0] && (data[0].result||data[0])) || {}) : (data.result || data);
+          var fd = new FormData();
+          fd.append('mode', document.getElementById('mode').value || 'levante');
+          fd.set('file', file, file.name);
+          var data = await apiFetch('/evaluate', { method:'POST', body: fd });
+          var payload = Array.isArray(data) ? (data[0] && data[0].result || data[0]) : data;
           render(payload);
-          if (preview && window.lastPreviewSrc) preview.src = window.lastPreviewSrc;
         }catch(ex){
-          var msg = (ex && ex.message) ? ex.message : String(ex);
-          if (err) err.textContent = 'Error evaluando';
-          console.error('[GanadoBravo] evaluate failed:', msg);
+          document.getElementById('err').textContent = ex.message || String(ex);
         }finally{
           btn.disabled = false;
-          btn.textContent = 'Evaluar';
         }
       });
-    }
-  });
+    });
   </script>
 </body>
 </html>

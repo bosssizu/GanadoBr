@@ -1,5 +1,2 @@
 #!/usr/bin/env bash
-set -euo pipefail
-PORT="${PORT:-8000}"
-echo "Starting GanadoBravo v38 (real pipeline ready) on 0.0.0.0:${PORT}"
-exec uvicorn main:app --host 0.0.0.0 --port "${PORT}" --proxy-headers --forwarded-allow-ips="*" --log-level info --timeout-keep-alive 75
+uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
