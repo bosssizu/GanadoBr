@@ -17,6 +17,10 @@ h2{margin-top:0} .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .preview{width:100%;height:220px;background:#f1f1f6;border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .preview img{max-width:100%;max-height:100%;}
 .decision{font-size:28px;font-weight:900}
+.banner{padding:10px;border-radius:8px;margin:10px 0;font-weight:600}
+.banner.err{background:#fee2e2;color:#7f1d1d}
+.banner.ok{background:#dcfce7;color:#065f46}
+.code{white-space:pre-wrap;background:#f6f8fa;border-radius:8px;padding:8px}
 </style></head>
 <body><div class="container">
 <div class="card">
@@ -38,13 +42,13 @@ h2{margin-top:0} .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 </div>
 
 <div class="card">
-  <h2>Resultado <span class="small"><a id="diaglink" href="/api/diag" target="_blank">/api/diag</a></span></h2>
-  <div class="grid">
+  <h2>Resultado <button id="togglejson" class="btn" style="background:#475569">Ver JSON</button> <span class="small"><a id="diaglink" href="/api/diag" target="_blank">/api/diag</a></span></h2>
+  <div id="banner"></div><div id="jsonbox" class="code" style="display:none"></div><div class="grid">
     <div>
       <div id="decision" class="decision">—</div>
       <div>BCS <span id="bcs">—</span></div>
     </div>
-    <div class="grid">
+    <div id="banner"></div><div id="jsonbox" class="code" style="display:none"></div><div class="grid">
       <div class="badge">Puntaje global: <span id="gscore">—</span></div>
       <div class="badge">Riesgo: <span id="risk">—</span></div>
     </div>
@@ -86,10 +90,11 @@ f('eval').onclick=async ()=>{
     const li=document.createElement('li'); li.innerHTML=`<span class="dot ok"></span>${h.name} = ${h.status==='descartado'?'Descartado':'Revisar'}`; hl.appendChild(li);
   });
   const br=f('breed');
-  if(data.breed){
+  if(data && data.breed){
     const nameTxt = (data.breed.name||'—'); const already = nameTxt.toLowerCase().includes('predomina'); const fam = data.breed.family? ` · ${data.breed.family}`: ''; const dom = (!already && data.breed.dominant && data.breed.dominant!=='ninguno')? ` · predomina ${data.breed.dominant}`: ''; br.textContent=`${nameTxt} · conf=${(data.breed.confidence??0).toFixed(2)}${fam}${dom}${data.breed.explanation?(' — '+data.breed.explanation):''}`;
   } else { br.textContent='—'; }
   const rs=f('reasons'); rs.innerHTML=''; (data.reasons||[]).forEach(x=>{const li=document.createElement('li'); li.textContent=x; rs.appendChild(li);});
 });
+document.getElementById('togglejson').onclick=()=>{ const b=document.getElementById('jsonbox'); b.style.display = (b.style.display==='none'?'block':'none'); };
 </script>
 </body></html>

@@ -5,10 +5,11 @@ from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 
-APP_VERSION = "v40f-error-surface"
+APP_VERSION = "v40g-ui-always-render"
 
 app = FastAPI(title="GanadoBravo API", version=APP_VERSION)
 LAST_ERROR = None
+LAST_RESULT = None
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
@@ -31,12 +32,13 @@ def routes():
     return [{"path": r.path, "name": getattr(r.app, "__name__", None)} for r in app.router.routes]
 
 @app.get("/api/diag")
+
 def diag():
     return {"ok": True, "version": APP_VERSION, "env": {
         "ENABLE_BREED": os.getenv("ENABLE_BREED","1"),
         "OPENAI_MODEL": os.getenv("OPENAI_MODEL","gpt-4o-mini"),
         "BREED_MODEL": os.getenv("BREED_MODEL","gpt-4o-mini"),
-    }, "last_error": LAST_ERROR}
+    }, "last_error": LAST_ERROR, "last_result_set": LAST_RESULT is not None}
 
 MAX_IMAGE_MB = int(os.getenv("MAX_IMAGE_MB","8"))
 WATCHDOG_SECONDS = int(os.getenv("WATCHDOG_SECONDS","20"))
@@ -52,6 +54,7 @@ async def _evaluate_internal(img_bytes: bytes, mode: str):
         out = format_output(agg, health, breed, mode)
         out["debug"] = {"latency_ms": int((time.time()-t0)*1000)}
         LAST_ERROR = None
+LAST_RESULT = None
         return out
     except Exception as e:
         import traceback
@@ -97,3 +100,8 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     return JSONResponse({"status":"error","code":422,"message":"validation error","detail":exc.errors()}, status_code=422)
+
+
+@app.get("/api/last")
+def last():
+    return {"ok": True, "result": LAST_RESULT}
