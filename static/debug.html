@@ -1,0 +1,19 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GB Debug</title>
+<style>body{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;margin:20px}pre{background:#f7f7f9;padding:12px;border-radius:8px}</style>
+<script>
+async function doEval(ev){
+  ev.preventDefault();
+  const f=document.getElementById('f').files[0];
+  const mode=document.getElementById('mode').value;
+  const fd=new FormData(); fd.append('file',f); fd.append('mode',mode);
+  const r=await fetch('/evaluate',{method:'POST',body:fd}); const o=document.getElementById('out');
+  if(!r.ok){o.textContent='ERR '+r.status+' '+await r.text();return}
+  o.textContent=JSON.stringify(await r.json(),null,2);
+}
+</script></head><body>
+<h2>GanadoBravo — Debug</h2>
+<form onsubmit="doEval(event)">
+<input id="f" type="file" accept="image/*"> <select id="mode"><option>levante</option><option>subasta</option></select>
+<button>Evaluar</button></form>
+<pre id="out">Sube imagen…</pre>
+</body></html>

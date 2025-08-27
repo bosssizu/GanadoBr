@@ -1,35 +1,193 @@
 <!doctype html>
 <html lang="es">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>GanadoBravo — v39k</title>
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>GanadoBravo — Evaluación</title>
+<style>
+:root{--bg:#f5f7fb;--fg:#0f172a;--muted:#6b7280;--card:#fff;--ok:#16a34a;--warn:#f59e0b;--bad:#ef4444;--chip:#e5e7eb;}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial}
+.container{max-width:1120px;margin:24px auto;padding:0 16px}
+.grid{display:grid;grid-template-columns:280px 1fr;gap:16px}
+.card{background:var(--card);border-radius:14px;box-shadow:0 2px 18px rgba(0,0,0,.06);padding:16px}
+.h{margin:0 0 8px 0;font-size:18px}
+.small{color:var(--muted);font-size:13px}
+.btn{background:#111827;color:#fff;border:0;border-radius:10px;padding:10px 14px;cursor:pointer}
+.input{width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:10px}
+.row{display:flex;gap:8px;align-items:center}
+.badge{display:inline-block;background:var(--chip);color:#374151;border-radius:999px;padding:4px 8px;font-size:12px;margin-right:6px}
+.kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.kpi .tile{background:#fff;border:1px solid #eef2f7;border-radius:12px;padding:12px}
+.kpi .title{font-size:12px;color:#64748b}
+.kpi .value{font-size:20px;margin-top:6px}
+.tabs{display:flex;border-bottom:1px solid #e5e7eb}
+.tab{flex:1;text-align:center;padding:10px;border-bottom:2px solid transparent;cursor:pointer}
+.tab.active{border-color:#111827;font-weight:600}
+.table{width:100%;border-collapse:collapse}
+.table th,.table td{padding:10px;border-bottom:1px solid #eef2f7;text-align:left;font-size:14px;vertical-align:top}
+.dot{width:10px;height:10px;border-radius:999px;display:inline-block;margin-right:6px}
+.dot.ok{background:var(--ok)}.dot.bad{background:var(--bad)}
+.list{margin:0;padding-left:18px}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#1f2937}
+.preview{height:220px;background:#f1f5f9;border:1px dashed #e5e7eb;border-radius:12px;display:flex;align-items:center;justify-content:center}
+.preview img{max-height:100%;max-width:100%;object-fit:contain;border-radius:10px}
+.footer{color:#9ca3af;font-size:12px;margin-top:10px}
+.link{color:#111827;text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1 style="margin-bottom:12px;">GanadoBravo — Evaluación</h1>
+  <div class="grid">
+    <div class="card">
+      <h3 class="h">Entrada</h3>
+      <div style="margin-bottom:10px">
+        <input id="file" type="file" accept="image/*" class="input"/>
+      </div>
+      <div style="margin-bottom:10px">
+        <label class="small">Modo</label>
+        <select id="mode" class="input">
+          <option value="levante">Levante</option>
+          <option value="subasta">Subasta</option>
+        </select>
+      </div>
+      <div class="row" style="justify-content:space-between">
+        <button class="btn" onclick="evaluate()">Evaluar</button>
+        <span id="modehint" class="small mono">modo=levante</span>
+      </div>
+      <div style="height:12px"></div>
+      <div class="small">Vista previa</div>
+      <div class="preview" id="preview"><span class="small">sin imagen…</span></div>
+      <div style="height:12px"></div>
+      <div class="small">Notas y razones</div>
+      <ul class="list" id="reasons"></ul>
+      <div class="footer">¿Debug? Abre <a class="link" href="/static/debug.html" target="_blank">/static/debug.html</a></div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="justify-content:space-between;align-items:center">
+        <div class="small">
+          <span class="badge">Calidad de entrada: <b>Estabilidad: alta</b></span>
+          <span class="badge">Rúbrica: activa</span>
+        </div>
+        <div class="small">Presentación optimizada para móviles</div>
+      </div>
+
+      <h3 class="h">Resultado</h3>
+      <div class="tabs">
+        <div id="tab_no" class="tab">No comprar</div>
+        <div id="tab_c_bajo" class="tab">Considerar (bajo)</div>
+        <div id="tab_c_alto" class="tab active">Considerar (alto)</div>
+        <div id="tab_buy" class="tab">Comprar</div>
+      </div>
+
+      <div class="kpi" style="margin-top:12px">
+        <div class="tile"><div class="title">Decisión</div><div class="value" id="k_decision">—</div></div>
+        <div class="tile"><div class="title">Puntaje global</div><div class="value" id="k_global">—</div></div>
+        <div class="tile"><div class="title">BCS</div><div class="value" id="k_bcs">—</div></div>
+        <div class="tile"><div class="title">Riesgo</div><div class="value" id="k_risk">—</div></div>
+      </div>
+
+      <div class="tile" style="margin-top:12px">
+        <div class="title">Bono posterior</div>
+        <div class="value" id="k_bonus">—</div>
+      </div>
+
+      <div style="height:14px"></div>
+      <h3 class="h">Rúbrica detallada</h3>
+      <table class="table" id="rubric">
+        <thead><tr><th>Métrica</th><th>Puntaje</th><th>Observaciones</th></tr></thead>
+        <tbody></tbody>
+      </table>
+
+      <div style="height:14px"></div>
+      <h3 class="h">Salud</h3>
+      <div id="health"></div>
+
+      <div style="height:14px"></div>
+      <h3 class="h">Raza</h3>
+      <div id="breed" class="small"></div>
+
+      <div style="height:14px"></div>
+      <div class="small" id="notes"></div>
+    </div>
+  </div>
+</div>
+
 <script>
-async function doEval(ev){
-  ev.preventDefault();
-  const file = document.getElementById('file').files[0];
+const fileEl = document.getElementById('file');
+const preview = document.getElementById('preview');
+fileEl.onchange = () => {
+  const f = fileEl.files[0];
+  if (!f) return;
+  const url = URL.createObjectURL(f);
+  preview.innerHTML = `<img src="${url}"/>`
+};
+
+function setTabs(level){
+  const ids = ["tab_no","tab_c_bajo","tab_c_alto","tab_buy"];
+  ids.forEach(x => document.getElementById(x).classList.remove('active'));
+  if(level==="NO_COMPRAR") document.getElementById("tab_no").classList.add('active');
+  else if(level==="CONSIDERAR_BAJO") document.getElementById("tab_c_bajo").classList.add('active');
+  else if(level==="CONSIDERAR_ALTO") document.getElementById("tab_c_alto").classList.add('active');
+  else if(level==="COMPRAR") document.getElementById("tab_buy").classList.add('active');
+}
+
+async function evaluate(){
+  const f = fileEl.files[0];
+  if(!f){ alert("Sube una imagen"); return; }
   const mode = document.getElementById('mode').value;
+  document.getElementById('modehint').textContent = `modo=${mode}`;
   const fd = new FormData();
-  fd.append('file', file); fd.append('mode', mode);
+  fd.append('file', f);
+  fd.append('mode', mode);
   const res = await fetch('/evaluate', { method:'POST', body: fd });
-  const out = document.getElementById('out');
-  if(!res.ok){ out.textContent = 'Error: ' + res.status + ' ' + await res.text(); return; }
-  out.textContent = JSON.stringify(await res.json(), null, 2);
+  if(!res.ok){
+     alert('Error: '+res.status+' '+await res.text()); return;
+  }
+  const data = await res.json();
+  // KPIs
+  setTabs(data.decision_level);
+  document.getElementById('k_decision').textContent = data.decision_text || '—';
+  document.getElementById('k_global').textContent = (data.global_score??'—');
+  document.getElementById('k_bcs').textContent = (data.bcs??'—');
+  document.getElementById('k_risk').textContent = (data.risk??'—');
+  document.getElementById('k_bonus').textContent = (data.posterior_bonus??0).toFixed(2);
+  document.getElementById('notes').textContent = data.notes || '';
+
+  // Reasons
+  const rl = document.getElementById('reasons'); rl.innerHTML='';
+  (data.reasons||[]).forEach(r => {
+    const li = document.createElement('li'); li.textContent = r; rl.appendChild(li);
+  });
+
+  // Rubric
+  const tb = document.querySelector('#rubric tbody'); tb.innerHTML='';
+  (data.rubric||[]).forEach(r => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${r.name}</td><td>${Number(r.score).toFixed(2)}</td><td>${r.obs||''}</td>`;
+    tb.appendChild(tr);
+  });
+
+  // Health
+  const hc = document.getElementById('health'); hc.innerHTML='';
+  const ul = document.createElement('ul'); ul.className='list';
+  (data.health||[]).forEach(h => {
+    const li = document.createElement('li');
+    const ok = h.status==='descartado';
+    li.innerHTML = `<span class="dot ${ok?'ok':'bad'}"></span>${h.name} = ${ok?'Descartado':'Sospecha'}`;
+    ul.appendChild(li);
+  });
+  hc.appendChild(ul);
+
+  // Breed
+  const br = document.getElementById('breed');
+  if(data.breed){
+    br.textContent = `${data.breed.name||'—'} · conf=${(data.breed.confidence??0).toFixed(2)}${data.breed.explanation?(' — '+data.breed.explanation):''}`;
+  } else {
+    br.textContent = '—';
+  }
 }
 </script>
-<style>
-body{font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin:2rem;}
-.card{border:1px solid #eee; border-radius:12px; padding:16px; margin-bottom:16px; box-shadow: 0 4px 14px rgba(0,0,0,.06);}
-pre{white-space: pre-wrap; background:#f7f7f9; padding:12px; border-radius:8px;}
-</style></head>
-<body>
-<h1>GanadoBravo — Evaluación (v39k)</h1>
-<div class="card">
-<form onsubmit="doEval(event)">
-  <label>Imagen: <input id="file" type="file" accept="image/*" required></label>
-  <label style="margin-left:12px;">Modo:
-    <select id="mode"><option>levante</option><option>subasta</option></select>
-  </label>
-  <button type="submit">Evaluar</button>
-</form>
-</div>
-<div class="card"><h3>Resultado (JSON para debug)</h3><pre id="out">Sube una imagen…</pre></div>
-</body></html>
+</body>
+</html>
