@@ -1,1 +1,184 @@
-<!doctype html><meta charset='utf-8'><title>GanadoBravo v3</title><link rel='icon' href='data:,'><body style='margin:0'><script>location.href='/static/index.html'</script>
+
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>GanadoBravo — Evaluación</title>
+<style>
+  :root{--bg:#0b1320;--panel:#0f1b2e;--soft:#16253f;--text:#e8eefc;--muted:#9fb0d0;--ok:#3ddc97;--warn:#ffd166;--bad:#ff6b6b;--info:#7bb0ff;}
+  *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
+  .wrap{display:grid;grid-template-columns:380px 1fr;gap:20px;padding:20px}
+  .card{background:var(--panel);border:1px solid var(--soft);border-radius:16px;padding:16px}
+  h1{margin:0 0 8px;font-size:24px;display:flex;gap:10px;align-items:center}
+  .badge{font-size:12px;padding:2px 8px;border-radius:999px;background:var(--soft);color:var(--muted);border:1px solid #223351}
+  .badge.ok{background:#0c2e1e;color:#9af1cd;border-color:#153d2a}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .input{display:flex;flex-direction:column;gap:8px}
+  label{font-size:13px;color:var(--muted)}
+  select,input[type=file]{width:100%;padding:10px;border-radius:10px;border:1px solid #2b3b5a;background:#0b1426;color:var(--text)}
+  button{background:#2e6cf6;color:white;border:0;padding:10px 14px;border-radius:12px;font-weight:600;cursor:pointer}
+  button:disabled{opacity:.6;cursor:not-allowed}
+  .preview{width:100%;height:320px;border-radius:12px;object-fit:cover;background:#0b1426;border:1px dashed #2b3b5a}
+  table{width:100%;border-collapse:collapse;margin-top:10px}
+  th,td{padding:10px;border-bottom:1px solid #223351;font-size:14px}
+  th{color:var(--muted);text-align:left}
+  .pill{display:inline-block;padding:8px 12px;border-radius:12px;background:#0b1426;border:1px solid #223351}
+  .score{font-weight:700}
+  .score.good{color:var(--ok)} .score.mid{color:var(--warn)} .score.bad{color:var(--bad)}
+  .kpi{display:flex;flex-direction:column;gap:6px}
+  .kpi .v{font-weight:800;font-size:20px}
+  .health li{margin:4px 0}
+  .dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:8px}
+  .dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)} .dot.bad{background:var(--bad)}
+  .decision{font-size:28px;font-weight:800;margin:6px 0 12px}
+  .note{color:var(--muted);font-size:13px}
+  .footer{font-size:12px;color:var(--muted);margin-top:10px}
+  .jsonbtn{background:#14294f;border:1px solid #27437a}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Entrada</h1>
+      <div class="input">
+        <label>Imagen (JPG/PNG)</label>
+        <input id="file" type="file" accept="image/*"/>
+      </div>
+      <div class="input" style="margin-top:10px">
+        <label>Modo</label>
+        <select id="mode">
+          <option value="levante">Levante (default)</option>
+          <option value="vaca_flaca">Vaca flaca</option>
+          <option value="engorde">Engorde</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;margin:12px 0 8px">
+        <button id="go">Evaluar</button>
+        <a class="badge" href="/api/diag" target="_blank">/api/diag</a>
+        <a class="badge" href="/healthz" target="_blank">/healthz</a>
+      </div>
+      <img id="preview" class="preview" alt="vista previa"/>
+      <div id="notes" class="footer"></div>
+    </div>
+
+    <div class="card">
+      <h1>Resultado <span id="engine" class="badge">—</span></h1>
+      <div id="decision" class="decision">—</div>
+      <div class="grid3">
+        <div class="kpi"><div class="note">BCS</div><div id="k_bcs" class="v">—</div></div>
+        <div class="kpi"><div class="note">Puntaje global</div><div id="k_global" class="v">—</div></div>
+        <div class="kpi"><div class="note">Riesgo</div><div id="k_risk" class="v">—</div></div>
+      </div>
+
+      <h3 style="margin-top:18px">Rúbrica detallada <span class="note">(métricas: 10/10)</span></h3>
+      <table id="rubric">
+        <thead><tr><th>Métrica</th><th>Puntaje</th><th>Observaciones</th></tr></thead>
+        <tbody></tbody>
+      </table>
+
+      <h3 style="margin-top:18px">Salud</h3>
+      <ul id="health" class="health"></ul>
+
+      <h3 style="margin-top:18px">Raza</h3>
+      <div id="breed">—</div>
+
+      <div style="margin-top:16px">
+        <button id="showjson" class="jsonbtn">Ver JSON</button>
+        <pre id="json" style="display:none;background:#0b1426;border:1px solid #223351;padding:12px;border-radius:12px;white-space:pre-wrap;max-height:300px;overflow:auto"></pre>
+      </div>
+    </div>
+  </div>
+
+<script>
+const $ = (s)=>document.querySelector(s);
+const file = $("#file"), mode = $("#mode"), go = $("#go"), prev = $("#preview");
+const decision = $("#decision"), engine = $("#engine");
+const k_bcs=$("#k_bcs"), k_global=$("#k_global"), k_risk=$("#k_risk");
+const rubT = $("#rubric tbody"), healthUL=$("#health"), breedDiv=$("#breed");
+const jsonBtn=$("#showjson"), jsonPre=$("#json"), notes=$("#notes");
+
+function colorScore(v){
+  if (v>=7.2) return "good";
+  if (v>=6.0) return "mid";
+  return "bad";
+}
+
+file.addEventListener("change", (e)=>{
+  const f = file.files?.[0];
+  if(!f){ prev.removeAttribute("src"); return; }
+  const url = URL.createObjectURL(f);
+  prev.src = url;
+});
+
+jsonBtn.onclick = ()=>{
+  jsonPre.style.display = (jsonPre.style.display==="none")?"block":"none";
+};
+
+go.onclick = async ()=>{
+  const f = file.files?.[0];
+  if(!f){ alert("Selecciona una imagen"); return; }
+  go.disabled = true; decision.textContent = "Procesando…";
+  rubT.innerHTML = ""; healthUL.innerHTML = ""; breedDiv.textContent = "—";
+  k_bcs.textContent = k_global.textContent = k_risk.textContent = "—";
+  engine.textContent = "—"; engine.classList.remove("ok");
+
+  const fd = new FormData();
+  fd.append("file", f);
+  fd.append("mode", mode.value);
+
+  try {
+    const resp = await fetch("/evaluate", { method:"POST", body: fd });
+    if(!resp.ok){ throw new Error(await resp.text()); }
+    const payload = await resp.json();
+    const res = payload.result || payload;
+    jsonPre.textContent = JSON.stringify(res, null, 2);
+
+    // headers
+    decision.textContent = res.decision_text || "—";
+    k_bcs.textContent = (res.bcs ?? "—");
+    k_global.textContent = (res.global_score ?? "—");
+    k_risk.textContent = (res.risk ?? "—");
+    engine.textContent = (res.engine==="ai" ? "IA activa" : "Motor local (fallback)");
+    if(res.engine==="ai") engine.classList.add("ok");
+
+    // rubric
+    (res.rubric||[]).forEach(r=>{
+      const tr=document.createElement("tr");
+      tr.innerHTML = `<td>${r.name}</td><td class="score ${colorScore(r.score)}">${r.score.toFixed? r.score.toFixed(2): r.score}</td><td>${r.obs||""}</td>`;
+      rubT.appendChild(tr);
+    });
+
+    // salud
+    (res.health||[]).forEach(h=>{
+      const li=document.createElement("li");
+      const status = (h.status||"").toLowerCase();
+      const cls = status.includes("descart") ? "ok" : (status.includes("sospe")?"warn":"bad");
+      li.innerHTML = `<span class="dot ${cls}"></span>${h.name} = ${h.status}`;
+      healthUL.appendChild(li);
+    });
+
+    // breed
+    if(res.breed){
+      const b = res.breed;
+      const eng = b.engine || res.engine || "fallback";
+      const conf = (typeof b.confidence==="number") ? b.confidence.toFixed(2) : b.confidence;
+      breedDiv.innerHTML = `<div><strong>${b.name||"Clasificación no disponible"}</strong> · conf=${conf??"—"} · ${eng==="ai"?"IA":"fallback"}</div>
+      <div class="note">${b.explanation||""}</div>`;
+    }else{
+      breedDiv.textContent = "Clasificación no disponible.";
+    }
+
+    // notes
+    const rzs = (res.reasons||[]).map(x=>"• "+x).join("  ");
+    notes.textContent = rzs;
+  } catch(err){
+    alert("Error: "+err);
+  } finally {
+    go.disabled = false;
+  }
+};
+</script>
+</body>
+</html>

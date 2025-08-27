@@ -6,10 +6,14 @@ from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from PIL import Image, ImageStat, ImageOps
 
-app = FastAPI(title="GanadoBravo Fullstack", version="v3-breed-ai")
+app = FastAPI(title="GanadoBravo Fullstack", version="v4")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-METRICS = ["Conformación","Línea dorsal","Angulación costillar","Profundidad de pecho","Aplomos","Lomo","Grupo/muscling posterior","Balance anterior-posterior","Ancho torácico","Inserción de cola"]
+# ----- Domain config -----
+METRICS = [
+    "Conformación","Línea dorsal","Angulación costillar","Profundidad de pecho","Aplomos",
+    "Lomo","Grupo/muscling posterior","Balance anterior-posterior","Ancho torácico","Inserción de cola"
+]
 HEALTH_ITEMS = ["Lesión cutánea","Claudicación","Secreción nasal","Conjuntivitis","Diarrea","Dermatitis","Lesión en pezuña","Parásitos externos","Tos"]
 
 def _calc_brightness_features(image: Image.Image):
@@ -18,13 +22,14 @@ def _calc_brightness_features(image: Image.Image):
     return stat.mean[0], stat.stddev[0]
 
 def _estimate_bcs(mean, stddev):
+    # 2.0 - 3.8 roughly
     m = max(0.0, min(1.0, (mean - 40.0) / (140.0-40.0)))
     s = max(0.0, min(1.0, stddev / 64.0))
     return round(2.0 + 1.8*(m*0.7 + (1.0-s)*0.3), 2)
 
 def _scores_from_bcs(bcs: float, mode: str):
     base = 5.0 + (bcs - 2.5) * 1.2
-    if mode == "vaca_flaca": base -= 0.8
+    if mode == "vaca_flaca": base -= 0.7
     elif mode == "engorde": base += 0.5
     import random
     rnd = random.Random(int(bcs*1000) + (abs(hash(mode)) % 1000))
@@ -35,7 +40,7 @@ def _scores_from_bcs(bcs: float, mode: str):
     return scores
 
 def _health_from_image(mean, stddev):
-    flag = (stddev > 60)
+    flag = (stddev > 60) # noisy/dirty pixel variance -> mark first item as 'sospecha'
     out = []
     for i, name in enumerate(HEALTH_ITEMS):
         status = "descartado" if not (flag and i==0) else "sospecha"
@@ -59,6 +64,7 @@ def _weighted_global(scores: List[float], mode: str, bcs: float) -> float:
         ww = w[i] if i < len(w) else 1.0
         num += s*ww; den += ww
     g = (num/den) if den>0 else 0.0
+    # gating by mode + BCS
     if mode=="levante":
         if 2.8<=bcs<=3.5: g+=0.20
         elif bcs<2.6: g-=0.30
@@ -85,29 +91,34 @@ def _risk_from_scores(gscore: float, mode: str, scores: List[float]) -> float:
     return round(r,2)
 
 BREED_LABELS=["Brahman","Nelore","Gyr","Cebú","Angus","Hereford","Holstein","Charolais","Limousin","Pardo Suizo","Brangus","Braford","Simbrah","Girolando","Criollo español","Criollo","Romosinuano","Carora"]
+
 def _data_url(img_bytes: bytes)->str: return "data:image/jpeg;base64,"+base64.b64encode(img_bytes).decode("ascii")
 
 def _breed_ai(image_bytes: bytes)->Dict[str,Any]:
     api_key=os.getenv("OPENAI_API_KEY")
     model=os.getenv("BREED_MODEL", os.getenv("OPENAI_MODEL","gpt-4o-mini"))
-    if not api_key: raise RuntimeError("OPENAI_API_KEY missing")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY missing")
     try:
         from openai import OpenAI
         client=OpenAI(api_key=api_key)
-        system=("Eres un experto en razas bovinas. Responde SOLO JSON con: "
-                "name, family(\"indicus\"|\"taurus\"|\"mixto\"), dominant, confidence(0..1), explanation. "
-                "Usa catálogo: "+", ".join(BREED_LABELS)+". Sé conservador.")
-        user="Clasifica la raza de este bovino. Solo JSON."
+        system=(
+            "Eres un experto en razas bovinas. Responde SOLO JSON con: "
+            "name, family(\"indicus\"|\"taurus\"|\"mixto\"), dominant, confidence(0..1), explanation. "
+            "Usa catálogo: "+", ".join(BREED_LABELS)+". Sé conservador."
+        )
+        user="Clasifica la raza de este bovino. Devuelve solo JSON válido."
         r=client.chat.completions.create(
             model=model,
             messages=[
                 {"role":"system","content":system},
                 {"role":"user","content":[{"type":"text","text":user},{"type":"image_url","image_url":{"url":_data_url(image_bytes)}}]}
             ],
-            temperature=0.2,max_tokens=250,timeout=12
+            temperature=0.2,max_tokens=250
         )
         data=json.loads(r.choices[0].message.content.strip()); data["engine"]="ai"; return data
     except Exception as e:
+        # fallback to legacy if available, else raise
         try:
             import openai as oai
             oai.api_key=api_key
@@ -141,11 +152,12 @@ def _evaluate_bytes(data: bytes, mode: str):
     return {"engine":engine,"decision_level":dec["decision_level"],"decision_text":dec["decision_text"],"bcs":bcs,"global_score":g,"risk":risk,"posterior_bonus":0.0,"rubric":rubric,"health":[{"name":h["name"],"status":h["status"]} for h in health],"breed":breed,"reasons":["Estructura general adecuada.","No se detectaron problemas de salud (screening visual)."]}
 
 @app.get("/", response_class=HTMLResponse)
-def index(): return FileResponse("static/index.html")
+def index():
+    return FileResponse("static/index.html")
 
 @app.get("/healthz")
 def health():
-    return {"ok":True,"version":"fullstack-v3-breed-ai","env":{"OPENAI_API_KEY":"set" if os.getenv("OPENAI_API_KEY") else "missing","BREED_MODEL":os.getenv("BREED_MODEL","") }}
+    return {"ok":True,"version":"fullstack-v4","env":{"OPENAI_API_KEY":"set" if os.getenv("OPENAI_API_KEY") else "missing","BREED_MODEL":os.getenv("BREED_MODEL","") }}
 
 @app.get("/api/diag")
 def diag(): return {"routes":[r.path for r in app.router.routes]}
