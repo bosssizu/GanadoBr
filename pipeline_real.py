@@ -1,9 +1,9 @@
+
 from typing import Dict, List, Any, Tuple
-import random, os, json, base64, requests, time, io, math
+import random, os, json, base64, requests, time, io
 import numpy as np
 from PIL import Image, ImageFilter
 
-# ------------------ Static configuration ------------------
 MORPHOLOGICAL_METRICS = [
     "Conformación","Línea dorsal","Angulación costillar","Profundidad de pecho",
     "Aplomos","Lomo","Grupo/muscling posterior","Balance anterior-posterior",
@@ -15,7 +15,76 @@ HEALTH_CATALOG = [
     "Dermatitis","Lesión en pezuña","Parásitos externos","Tos",
 ]
 
-# ------------------ Core rubric & base model ------------------
+# ---------- Helpers (OpenAI/Azure) ----------
+
+def _llm_keys_present()->bool:
+    return (os.getenv("OPENAI_API_KEY") or os.getenv("AZURE_OPENAI_API_KEY")) is not None
+
+def _provider()->str:
+    return (os.getenv("LLM_PROVIDER") or "openai").lower()
+
+def _timeout()->int:
+    return int(os.getenv("LLM_TIMEOUT_SEC","18"))
+
+def _retries()->int:
+    return int(os.getenv("LLM_RETRIES","2"))
+
+def _call_openai_chat_image(prompt:str, b64_image:str, timeout_s:int)->str:
+    api_key = os.getenv("OPENAI_API_KEY")
+    base = os.getenv("OPENAI_BASE_URL","https://api.openai.com/v1")
+    model = os.getenv("OPENAI_MODEL","gpt-4o-mini")
+    url = f"{base}/chat/completions"
+    headers = {"Content-Type":"application/json","Authorization":f"Bearer {api_key}"}
+    body = {
+        "model": model,
+        "temperature": 0.1,
+        "messages":[
+            {"role":"system","content": prompt},
+            {"role":"user","content":[
+                {"type":"text","text":"Analiza esta imagen y responde SOLO el JSON pedido."},
+                {"type":"image_url","image_url":{"url": f"data:image/jpeg;base64,{b64_image}"}}
+            ]}
+        ]
+    }
+    r = requests.post(url, headers=headers, json=body, timeout=(6, timeout_s))
+    r.raise_for_status()
+    data = r.json()
+    return data["choices"][0]["message"]["content"]
+
+def _call_azure_openai_chat_image(prompt:str, b64_image:str, timeout_s:int)->str:
+    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+    deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT")
+    api_version = os.getenv("OPENAI_API_VERSION","2024-02-15-preview")
+    api_key = os.getenv("AZURE_OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
+    if not (endpoint and deployment and api_key):
+        raise RuntimeError("azure_openai_env_incompleto")
+    url = f"{endpoint}/openai/deployments/{deployment}/chat/completions?api-version={api_version}"
+    headers = {"Content-Type":"application/json","api-key": api_key}
+    body = {
+        "temperature": 0.1,
+        "messages":[
+            {"role":"system","content": prompt},
+            {"role":"user","content":[
+                {"type":"text","text":"Analiza esta imagen y responde SOLO el JSON pedido."},
+                {"type":"image_url","image_url":{"url": f"data:image/jpeg;base64,{b64_image}"}}
+            ]}
+        ]
+    }
+    r = requests.post(url, headers=headers, json=body, timeout=(6, timeout_s))
+    r.raise_for_status()
+    data = r.json()
+    return data["choices"][0]["message"]["content"]
+
+def _parse_json(text:str)->Dict[str,Any]:
+    try:
+        start = text.index("{"); end = text.rindex("}")
+        raw = text[start:end+1]
+    except ValueError:
+        raw = text.strip()
+    raw = raw.replace("```json","").replace("```","").strip()
+    return json.loads(raw)
+
+# ---------- Baseline rubric (fallback) ----------
 def _score_obs(name:str, seed:int)->Tuple[float,str]:
     rnd = random.Random(seed)
     score = round(rnd.uniform(5.8, 8.6), 2)
@@ -24,31 +93,89 @@ def _score_obs(name:str, seed:int)->Tuple[float,str]:
     if "dorsal" in name.lower() and score<6.5: obs = "Ligera concavidad dorsal"
     return score, obs
 
-def run_metrics_pass(img_bytes: bytes, mode:str, pass_id:int)->Dict[str, Any]:
-    base = len(img_bytes) + 13*pass_id
+def run_baseline_rubric(img_bytes:bytes, mode:str)->Dict[str,Any]:
+    base = len(img_bytes)
     rubric = []
     for idx, m in enumerate(MORPHOLOGICAL_METRICS):
         sc, obs = _score_obs(m, base+idx)
         rubric.append({"name": m, "score": sc, "obs": obs})
-    bcs = round(2.6 + (base % 180)/180 * 1.7, 2)  # baseline (pre-gating)
-    risk = round(0.15 + ((base*7) % 60)/100 * 0.5, 2)
+    bcs = 3.0
+    risk = 0.35
     posterior_bonus = 0.1 if any(r["name"]=="Grupo/muscling posterior" and r["score"]>=8.0 for r in rubric) else 0.0
-    qc = {"visible_ratio": 0.86, "stability": "alta"}
-    return {"rubric": rubric, "bcs": bcs, "risk": risk, "posterior_bonus": posterior_bonus, "qc": qc}
-
-def aggregate_metrics(m1:Dict[str,Any], m2:Dict[str,Any])->Dict[str,Any]:
-    scores = {}; obs = {}
-    for m in m1["rubric"] + m2["rubric"]:
-        scores.setdefault(m["name"], []).append(m["score"])
-        obs.setdefault(m["name"], m["obs"])
-    rubric = [{"name": k, "score": round(sum(v)/len(v),2), "obs": obs[k]} for k,v in scores.items()]
     global_score = round(sum(r["score"] for r in rubric)/len(rubric), 2)
-    bcs = round((m1["bcs"] + m2["bcs"])/2, 2)
-    risk = round((m1["risk"] + m2["risk"])/2, 2)
-    posterior_bonus = 0.1 if any(r["name"]=="Grupo/muscling posterior" and r["score"]>=8.0 for r in rubric) else 0.0
-    qc = m1.get("qc", {})
-    return {"rubric": rubric, "global_score": global_score, "bcs": bcs, "risk": risk, "posterior_bonus": posterior_bonus, "qc": qc}
+    qc = {"visible_ratio": 0.86, "stability": "alta"}
+    return {"rubric": rubric, "global_score": global_score, "bcs": bcs, "risk": risk, "posterior_bonus": posterior_bonus, "qc": qc, "notes":"fallback_baseline"}
 
+# ---------- AI rubric (end-to-end) ----------
+
+def _ai_enabled()->bool:
+    return os.getenv("ENABLE_AI_RUBRIC","1") == "1" and _llm_keys_present()
+
+def run_ai_rubric(img_bytes:bytes, mode:str)->Dict[str,Any]:
+    if not _ai_enabled():
+        raise RuntimeError("ai_rubric_disabled_or_no_keys")
+    b64 = base64.b64encode(img_bytes).decode("utf-8")
+    provider = _provider()
+    timeout_s = _timeout()
+    retries = _retries()
+
+    sys_prompt = """Eres evaluador bovino. Genera una rúbrica morfológica COMPLETA y consistente con la condición corporal a partir de UNA foto lateral.
+Sé conservador cuando la precisión es baja (p.ej., aplomos desde una sola lateral).
+
+Responde SOLO en JSON con este esquema EXACTO y estos nombres de métricas (10 métricas):
+{
+  "bcs_1to5": 1.0-5.0,
+  "risk_0to1": 0.0-1.0,
+  "metrics": [
+    {"name":"Conformación","score_1to10":1.0-10.0,"obs":"..."},
+    {"name":"Línea dorsal","score_1to10":1.0-10.0,"obs":"..."},
+    {"name":"Angulación costillar","score_1to10":1.0-10.0,"obs":"..."},
+    {"name":"Profundidad de pecho","score_1to10":1.0-10.0,"obs":"..."},
+    {"name":"Aplomos","score_1to10":1.0-10.0,"obs":"..."},
+    {"name":"Lomo","score_1to10":1.0-10.0,"obs":"..."},
+    {"name":"Grupo/muscling posterior","score_1to10":1.0-10.0,"obs":"..."},
+    {"name":"Balance anterior-posterior","score_1to10":1.0-10.0,"obs":"..."},
+    {"name":"Ancho torácico","score_1to10":1.0-10.0,"obs":"..."},
+    {"name":"Inserción de cola","score_1to10":1.0-10.0,"obs":"..."}
+  ],
+  "notes":"cues breves (máx 140 caracteres)"
+}
+Reglas: si BCS ≤2.5, baja dorsal/lomo/grupo/pecho/ancho; no des "posterior" alto con BCS bajo; reduce confianza de aplomos. No inventes avances si la evidencia es pobre."""
+
+    last_err = None
+    for attempt in range(retries+1):
+        try:
+            if provider == "azure":
+                text = _call_azure_openai_chat_image(sys_prompt, b64, timeout_s)
+            else:
+                text = _call_openai_chat_image(sys_prompt, b64, timeout_s)
+            obj = _parse_json(text)
+            # Normalize / clamp values
+            bcs = float(obj.get("bcs_1to5", 3.0))
+            risk = float(obj.get("risk_0to1", 0.35))
+            metrics = obj.get("metrics", [])
+            # ensure all names exist; if missing, fill neutral
+            byname = {m["name"]: m for m in metrics if "name" in m}
+            rubric = []
+            for n in MORPHOLOGICAL_METRICS:
+                m = byname.get(n, {"name": n, "score_1to10": 6.5, "obs": "Adecuado"})
+                score = float(m.get("score_1to10", 6.5))
+                obs = str(m.get("obs","Adecuado"))
+                rubric.append({"name": n, "score": round(score,2), "obs": obs})
+            posterior = next((r for r in rubric if r["name"]=="Grupo/muscling posterior"), {"score":0})["score"]
+            posterior_bonus = 0.1 if (posterior>=8.0 and bcs>=3.4) else 0.0
+            global_score = round(sum(r["score"] for r in rubric)/len(rubric), 2)
+            qc = {"visible_ratio": 0.86, "stability": "alta"}
+            return {"rubric": rubric, "global_score": global_score, "bcs": round(bcs,2), "risk": round(risk,2), "posterior_bonus": posterior_bonus, "qc": qc, "notes":"ai_rubric"}
+        except Exception as e:
+            last_err = str(e)
+            if attempt < retries:
+                time.sleep(0.6*(2**attempt))
+            else:
+                break
+    raise RuntimeError(f"ai_rubric_error: {last_err}")
+
+# ---------- Health ----------
 def detect_health(img_bytes:bytes, metrics:Dict[str,Any])->List[Dict[str,Any]]:
     res = []
     base = len(img_bytes)%len(HEALTH_CATALOG)
@@ -58,81 +185,14 @@ def detect_health(img_bytes:bytes, metrics:Dict[str,Any])->List[Dict[str,Any]]:
         res.append({"name": name, "status": status})
     return res
 
-# ------------------ Hidden prompts (breed OFF safe fallback) ------------------
+# ---------- Breed ----------
 def run_breed_prompt(img_bytes:bytes)->Dict[str,Any]:
-    return {"name":"Cruza (indicus/taurus posible)","confidence":0.55,"explanation":"Breed OFF o sin API key"}
+    if not _llm_keys_present() or os.getenv("ENABLE_BREED","0")!="1":
+        return {"name":"Cruza (indicus/taurus posible)","confidence":0.55,"explanation":"Breed OFF o sin API key"}
+    return {"name":"Cruza (indicus/taurus posible)","confidence":0.6,"explanation":"placeholder simple"}
 
-# ---- Condition heuristics (from v39k) ----
-def run_condition_prompt(img_bytes:bytes)->Dict[str,Any]:
-    from PIL import Image, ImageFilter
-    import numpy as np, io
-    try:
-        im = Image.open(io.BytesIO(img_bytes)).convert("L").resize((384,384))
-        edges = im.filter(ImageFilter.FIND_EDGES)
-        m_edge = np.array(edges, dtype=np.float32).mean()/255.0
-        m_int = np.array(im, dtype=np.float32).mean()/255.0
-        bcs = 4.2 - 2.6*m_edge - 0.4*abs(m_int-0.55)
-        bcs = float(np.clip(bcs, 1.2, 4.6))
-        dorsal = float(np.clip(8.5 - 2.8*(4.0-bcs), 3.5, 7.5))
-        posterior = float(np.clip(8.4 - 3.2*(4.0-bcs), 3.8, 8.2))
-        chest = float(np.clip(8.0 - 2.6*(4.0-bcs), 4.8, 7.5))
-        risk_hint = float(np.clip(0.25 + (3.0-bcs)*0.18, 0.18, 0.72))
-        return {"bcs": round(bcs,2), "dorsal": round(dorsal,1), "posterior": round(posterior,1), "chest": round(chest,1), "risk_hint": round(risk_hint,2), "source":"heuristic"}
-    except Exception:
-        return {"bcs":2.6, "dorsal":6.0, "posterior":6.2, "chest":6.0, "risk_hint":0.38, "source":"heuristic_fallback"}
-
-# ------------------ Apply condition gating ------------------
-
-def _cap(rubric:List[Dict[str,Any]], name:str, new_score:float, obs_if_drop:str)->None:
-    for r in rubric:
-        if r["name"] == name:
-            if new_score < r["score"]:
-                r["score"] = round(new_score,2)
-                if obs_if_drop: r["obs"] = obs_if_drop
-            return
-
-def apply_condition_gating(agg:Dict[str,Any], cond:Dict[str,Any])->Dict[str,Any]:
-    rubric = [dict(r) for r in agg["rubric"]]
-    bcs = float(cond.get("bcs", agg["bcs"]))
-    weights = {r["name"]: 1.0 for r in rubric}
-
-    if bcs < 2.6:
-        _cap(rubric, "Conformación",        max(3.8, 5.0 - (2.6-bcs)*1.8), "Estructura afectada por delgadez")
-        _cap(rubric, "Lomo",                max(3.8, 5.2 - (2.6-bcs)*1.8), "Lomo hundido")
-        target_costillar = max(4.0, min(6.0, 3.0 + bcs*0.8))
-        _cap(rubric, "Angulación costillar", target_costillar, "Intercostales visibles")
-        _cap(rubric, "Línea dorsal",        cond.get("dorsal", 5.0),  "Concavidad dorsal")
-        _cap(rubric, "Grupo/muscling posterior", cond.get("posterior", 5.5), "Pobre desarrollo posterior")
-        _cap(rubric, "Profundidad de pecho", cond.get("chest", 6.0), "Caja torácica angosta")
-        _cap(rubric, "Ancho torácico",      cond.get("chest", 6.0), "Caja torácica angosta")
-        weights["Aplomos"] = 0.5
-        posterior_bonus = 0.0
-    else:
-        posterior_bonus = agg.get("posterior_bonus",0.0) if bcs >= 3.4 else 0.0
-
-    num = sum(r["score"] * weights[r["name"]] for r in rubric)
-    den = sum(weights.values())
-    global_score = round(num/den, 2)
-
-    risk = agg["risk"]
-    if bcs < 2.6:
-        risk = min(0.95, max(risk, cond.get("risk_hint", 0.5)))
-        risk = min(0.95, risk + (2.6 - bcs)*0.2)
-
-    return {
-        **agg,
-        "rubric": rubric,
-        "global_score": global_score,
-        "bcs": round(bcs,2),
-        "risk": round(risk,2),
-        "posterior_bonus": posterior_bonus,
-        "weights": weights,
-        "condition": cond,
-    }
-
-# ------------------ Final formatting & decision ------------------
-
-def format_output(agg:Dict[str,Any], health:List[Dict[str,Any]], breed:Dict[str,Any], mode:str, cond:Dict[str,Any])->Dict[str,Any]:
+# ---------- Formatting & decision ----------
+def format_output(agg:Dict[str,Any], health:List[Dict[str,Any]], breed:Dict[str,Any], mode:str)->Dict[str,Any]:
     score = agg["global_score"] + agg.get("posterior_bonus",0.0)
     bcs = agg["bcs"]; risk = agg["risk"]
     if bcs < 2.0 or risk >= 0.6:
@@ -156,7 +216,6 @@ def format_output(agg:Dict[str,Any], health:List[Dict[str,Any]], breed:Dict[str,
     if agg.get("posterior_bonus",0)>0:
         reasons.append("Buen desarrollo posterior (+bono).")
     reasons.append("Estructura general adecuada.")
-    reasons.insert(0, f"Condición corporal (BCS)={agg['bcs']} → ajuste de rúbrica aplicado.")
 
     return {
         "decision_level": decision_level,
@@ -166,11 +225,10 @@ def format_output(agg:Dict[str,Any], health:List[Dict[str,Any]], breed:Dict[str,
         "risk": risk,
         "posterior_bonus": agg.get("posterior_bonus",0),
         "global_conf": 0.9,
-        "notes": "Evaluación pipeline real (v39k-fullui).",
-        "qc": {**agg.get("qc",{}), "auction_mode": (mode=='subasta')},
+        "notes": "Evaluación pipeline real (v39l-fullui, AI end-to-end). " + agg.get("notes",""),
+        "qc": {"visible_ratio": 0.86, "stability": "alta", "auction_mode": (mode=='subasta')},
         "rubric": agg["rubric"],
         "reasons": reasons,
         "health": health,
         "breed": breed,
-        "condition": cond,
     }

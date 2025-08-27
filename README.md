@@ -1,15 +1,18 @@
-# GanadoBravo v39k-fullui — Fix UI
+# GanadoBravo v39l-fullui — AI end-to-end (UI completa)
 
-- Restaura la **UI completa** (cards, rúbrica, salud, raza).
-- Mantiene backend de **v39k** (stronger gating por BCS).
-- Deja una página de **debug** en `/static/debug.html` (JSON crudo).
+- La **rúbrica completa**, **BCS** y **riesgo** vienen del **modelo** (OpenAI o Azure) con timeouts y reintentos.
+- Si el modelo falla, cae al **baseline**.
+- UI completa (cards). Diagnóstico en `/api/diag`.
 
-## Deploy rápido
-- Start: `bash start.sh`
-- Env sugerido:
+## Variables (Railway)
 ```
-WATCHDOG_SECONDS=30
+ENABLE_AI_RUBRIC=1
+LLM_PROVIDER=openai            # o azure
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4o-mini
+LLM_TIMEOUT_SEC=18
+LLM_RETRIES=2
+WATCHDOG_SECONDS=40            # >= timeout*(retries+1)+5
+ENABLE_BREED=0|1               # opcional
 MAX_IMAGE_MB=8
-# Opcional para raza:
-ENABLE_BREED=0
 ```

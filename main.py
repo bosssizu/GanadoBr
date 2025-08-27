@@ -1,3 +1,4 @@
+
 import os, asyncio, time
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
@@ -5,11 +6,11 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 
 from pipeline_real import (
-    run_metrics_pass, aggregate_metrics, detect_health,
-    run_breed_prompt, run_condition_prompt, apply_condition_gating, format_output
+    run_ai_rubric, run_baseline_rubric, detect_health,
+    run_breed_prompt, format_output
 )
 
-APP_VERSION = "v39k-fullui"
+APP_VERSION = "v39l-fullui"
 
 app = FastAPI(title="GanadoBravo API", version=APP_VERSION)
 
@@ -24,6 +25,8 @@ app.add_middleware(
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
+LAST_ERROR = {"when": None, "where": None, "msg": None}
+
 @app.get("/", response_class=HTMLResponse)
 def index():
     return FileResponse(os.path.join(static_dir, "index.html"))
@@ -32,22 +35,41 @@ def index():
 def health():
     return {"ok": True, "version": APP_VERSION}
 
+@app.get("/api/diag")
+def diag():
+    return {
+        "ok": True,
+        "version": APP_VERSION,
+        "env": {
+            "ENABLE_AI_RUBRIC": os.getenv("ENABLE_AI_RUBRIC","1"),
+            "ENABLE_BREED": os.getenv("ENABLE_BREED","0"),
+            "LLM_PROVIDER": os.getenv("LLM_PROVIDER","openai"),
+            "OPENAI_MODEL": os.getenv("OPENAI_MODEL","gpt-4o-mini"),
+            "LLM_TIMEOUT_SEC": int(os.getenv("LLM_TIMEOUT_SEC","18")),
+            "LLM_RETRIES": int(os.getenv("LLM_RETRIES","2")),
+            "WATCHDOG_SECONDS": int(os.getenv("WATCHDOG_SECONDS","40")),
+        },
+        "last_error": LAST_ERROR,
+    }
+
 MAX_IMAGE_MB = int(os.getenv("MAX_IMAGE_MB","8"))
-WATCHDOG_SECONDS = int(os.getenv("WATCHDOG_SECONDS","30"))
+WATCHDOG_SECONDS = int(os.getenv("WATCHDOG_SECONDS","40"))
 
 async def _evaluate_internal(img_bytes: bytes, mode: str):
     t0 = time.time()
-    m1 = run_metrics_pass(img_bytes, mode, pass_id=1)
-    m2 = run_metrics_pass(img_bytes, mode, pass_id=2)
-    agg = aggregate_metrics(m1, m2)
+    try:
+        agg = run_ai_rubric(img_bytes, mode)  # AI-first
+        ai_used = True
+    except Exception as e:
+        LAST_ERROR.update({"when": time.time(), "where": "run_ai_rubric", "msg": str(e)})
+        agg = run_baseline_rubric(img_bytes, mode)  # fallback
+        ai_used = False
 
-    cond = run_condition_prompt(img_bytes)
-    agg_adj = apply_condition_gating(agg, cond)
-
-    health = detect_health(img_bytes, agg_adj)
+    health = detect_health(img_bytes, agg)
     breed = run_breed_prompt(img_bytes)
-    out = format_output(agg_adj, health, breed, mode, cond)
-    out["debug"] = {"latency_ms": int((time.time()-t0)*1000), "weights": agg_adj.get("weights",{})}
+
+    out = format_output(agg, health, breed, mode)
+    out["debug"] = {"latency_ms": int((time.time()-t0)*1000), "ai_used": ai_used}
     return out
 
 @app.post("/evaluate")

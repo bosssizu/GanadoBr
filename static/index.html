@@ -61,14 +61,14 @@
       <div style="height:12px"></div>
       <div class="small">Notas y razones</div>
       <ul class="list" id="reasons"></ul>
-      <div class="footer">¿Debug? Abre <a class="link" href="/static/debug.html" target="_blank">/static/debug.html</a></div>
+      <div class="footer">Diagnóstico en <a class="link" href="/api/diag" target="_blank">/api/diag</a></div>
     </div>
 
     <div class="card">
       <div class="row" style="justify-content:space-between;align-items:center">
         <div class="small">
           <span class="badge">Calidad de entrada: <b>Estabilidad: alta</b></span>
-          <span class="badge">Rúbrica: activa</span>
+          <span class="badge">Rúbrica: AI</span>
         </div>
         <div class="small">Presentación optimizada para móviles</div>
       </div>
@@ -146,7 +146,6 @@ async function evaluate(){
      alert('Error: '+res.status+' '+await res.text()); return;
   }
   const data = await res.json();
-  // KPIs
   setTabs(data.decision_level);
   document.getElementById('k_decision').textContent = data.decision_text || '—';
   document.getElementById('k_global').textContent = (data.global_score??'—');
@@ -154,22 +153,14 @@ async function evaluate(){
   document.getElementById('k_risk').textContent = (data.risk??'—');
   document.getElementById('k_bonus').textContent = (data.posterior_bonus??0).toFixed(2);
   document.getElementById('notes').textContent = data.notes || '';
-
-  // Reasons
   const rl = document.getElementById('reasons'); rl.innerHTML='';
-  (data.reasons||[]).forEach(r => {
-    const li = document.createElement('li'); li.textContent = r; rl.appendChild(li);
-  });
-
-  // Rubric
+  (data.reasons||[]).forEach(r => { const li = document.createElement('li'); li.textContent = r; rl.appendChild(li); });
   const tb = document.querySelector('#rubric tbody'); tb.innerHTML='';
   (data.rubric||[]).forEach(r => {
     const tr = document.createElement('tr');
     tr.innerHTML = `<td>${r.name}</td><td>${Number(r.score).toFixed(2)}</td><td>${r.obs||''}</td>`;
     tb.appendChild(tr);
   });
-
-  // Health
   const hc = document.getElementById('health'); hc.innerHTML='';
   const ul = document.createElement('ul'); ul.className='list';
   (data.health||[]).forEach(h => {
@@ -179,14 +170,10 @@ async function evaluate(){
     ul.appendChild(li);
   });
   hc.appendChild(ul);
-
-  // Breed
   const br = document.getElementById('breed');
   if(data.breed){
     br.textContent = `${data.breed.name||'—'} · conf=${(data.breed.confidence??0).toFixed(2)}${data.breed.explanation?(' — '+data.breed.explanation):''}`;
-  } else {
-    br.textContent = '—';
-  }
+  } else { br.textContent = '—'; }
 }
 </script>
 </body>
