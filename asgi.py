@@ -18,6 +18,14 @@ def _fallback_app(error_msg: str):
     @fa.get("/healthz")
     def healthz():
         return {"ok": False, "asgi_fallback": True, "error": error_msg}
+
+@fa.get("/routes")
+def routes():
+    return [r.path for r in fa.router.routes]
+
+@fa.post("/evaluate")
+async def eval_stub():
+    return {"status":"error","code":501,"message":"ASGI fallback activo: main_app no se cargó", "hint":"Revisa Procfile/start.sh y que main_app.py exporte 'app'."}
     return fa
 
 try:
