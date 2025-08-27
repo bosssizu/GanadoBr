@@ -3,28 +3,23 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>GanadoBravo — Evaluación (v40y)</title>
+  <title>GanadoBravo — Evaluación (fullstack v1)</title>
   <style>
-    :root{ --bg:#0b1220; --card:#0f172a; --muted:#94a3b8; --text:#e2e8f0; --accent:#38bdf8;
-           --ok:#16a34a; --warn:#d97706; --bad:#dc2626; --chip:#0b2a3a; }
+    :root{ --bg:#0b1220; --card:#0f172a; --muted:#94a3b8; --text:#e2e8f0; --ok:#16a34a; --bad:#dc2626; }
     *{box-sizing:border-box} body{margin:0;background:#0b1220;color:var(--text);
-    font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+      font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
     header{padding:18px 22px;border-bottom:1px solid #0f2540;background:#0b1220;position:sticky;top:0;z-index:10}
-    header h1{margin:0;font-weight:800;letter-spacing:.3px}
     .wrap{display:grid;grid-template-columns:340px 1fr; gap:18px; padding:18px; max-width:1300px;margin:0 auto}
-    .card{background:linear-gradient(180deg,#0b1220,#071522) padding-box, linear-gradient(180deg,#0e2033,#09213b) border-box;
-          border:1px solid transparent;border-radius:14px;box-shadow:0 4px 24px rgba(0,0,0,.35)}
-    .card .head{padding:14px 16px;border-bottom:1px dashed #11334d;color:#a1b3c5;font-weight:700}
-    .card .body{padding:14px 16px} .muted{color:var(--muted)} .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .card{background:#0f172a;border:1px solid #15344e;border-radius:14px;box-shadow:0 4px 24px rgba(0,0,0,.35)}
+    .card .head{padding:14px 16px;border-bottom:1px dashed #15344e;color:#a1b3c5;font-weight:700}
+    .card .body{padding:14px 16px}
+    .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
     .btn{background:#11263b;border:1px solid #15344e;color:#dbeafe;padding:9px 14px;border-radius:10px;cursor:pointer}
     .btn:disabled{opacity:.6;cursor:not-allowed}
-    input[type=file]{max-width:100%} select{background:#0f2033;color:var(--text);border:1px solid #15344e;border-radius:10px;padding:8px 10px}
-    .preview{width:100%;aspect-ratio:1/1;border:1px dashed #214561;border-radius:12px;display:flex;align-items:center;justify-content:center;
-             overflow:hidden;background:#0a1a29}
+    .preview{width:100%;aspect-ratio:1/1;border:1px dashed #214561;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#0a1a29}
     .preview img{max-width:100%;height:100%;object-fit:cover}
     .badge{font-size:11px;padding:4px 8px;border-radius:999px;display:inline-flex;align-items:center;gap:6px}
     .b-ai{background:#0b3b24;color:#b4f2cf;border:1px solid #166a42} .b-fb{background:#431515;color:#fecaca;border:1px solid #7f1d1d}
-    .pill{background:#0b2a3a;color:#8dd7ff;border:1px solid #104a6a;border-radius:999px;padding:4px 8px;font-size:12px}
     .decision{font-size:28px;font-weight:900;letter-spacing:.2px}
     .kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr)); gap:10px; margin-top:10px}
     .kpi{background:#0f1828;border:1px solid #15344e;border-radius:12px;padding:10px 12px}
@@ -32,17 +27,18 @@
     table{width:100%;border-collapse:collapse} th,td{padding:10px;border-bottom:1px solid #0f2540;vertical-align:top}
     th{color:#93a4b6;font-weight:700;text-align:left} .score{font-weight:700;text-align:right}
     .score.ok{color:#22c55e} .score.mid{color:#a3e635} .score.warn{color:#f59e0b} .score.bad{color:#ef4444}
-    ul.clean{list-style:none;padding-left:18px} .small{font-size:12px} .footer{padding:12px 16px;color:#7b8da1}
-    .loader{display:none} .loader.on{display:inline-block;border:3px solid #173b58;border-top-color:#4cc3ff;border-radius:50%;
-           width:16px;height:16px;animation:spin 1s linear infinite} @keyframes spin{to{transform:rotate(360deg)}}
+    ul.clean{list-style:none;padding-left:18px} .small{font-size:12px} .muted{color:#94a3b8}
+    .alert{padding:8px 10px;border-radius:10px;margin-bottom:10px;display:none}
+    .alert.on{display:block} .alert.bad{background:#3b0d0d;color:#fecaca;border:1px solid #7f1d1d}
   </style>
 </head>
 <body>
-  <header><h1>GanadoBravo — Evaluación <span class="pill">v40y UI</span></h1></header>
+  <header><h1>GanadoBravo — Evaluación <span class="badge b-fb" id="engine" style="display:none"></span></h1></header>
   <div class="wrap">
     <div class="card">
       <div class="head">Entrada</div>
       <div class="body">
+        <div id="err" class="alert bad"></div>
         <div class="row" style="margin-bottom:10px">
           <input id="file" type="file" accept="image/*">
           <select id="mode">
@@ -50,7 +46,7 @@
             <option value="vaca_flaca">Vaca flaca</option>
             <option value="engorde">Engorde</option>
           </select>
-          <button id="go" class="btn">Evaluar <span id="spin" class="loader"></span></button>
+          <button id="go" class="btn">Evaluar</button>
         </div>
         <div class="preview" id="preview"><span class="muted">vista previa</span></div>
         <div style="margin-top:10px" class="small muted">
@@ -59,7 +55,7 @@
       </div>
     </div>
     <div class="card">
-      <div class="head">Resultado <span id="engine" class="badge b-fb" style="display:none"></span></div>
+      <div class="head">Resultado</div>
       <div class="body">
         <div class="decision" id="decision">—</div>
         <div class="kpi-grid">
@@ -69,31 +65,30 @@
           <div class="kpi"><div class="lab">Bono posterior</div><div class="val" id="bonus">0.00</div></div>
         </div>
         <div style="margin-top:18px">
-          <div class="head muted" style="border:none;padding:0">Rúbrica detallada <span id="rubric_count" class="small"></span></div>
+          <div class="muted" style="margin-bottom:6px">Rúbrica detallada <span id="rubric_count" class="small"></span></div>
           <table><thead>
             <tr><th style="width:34%">Métrica</th><th style="width:10%;text-align:right">Puntaje</th><th>Observaciones</th></tr>
           </thead><tbody id="rubric_tbody"></tbody></table>
         </div>
         <div style="margin-top:14px">
-          <div class="head muted" style="border:none;padding:0">Salud</div>
+          <div class="muted" style="margin-bottom:6px">Salud</div>
           <ul id="health" class="clean"></ul>
         </div>
         <div style="margin-top:14px">
-          <div class="head muted" style="border:none;padding:0">Raza</div>
+          <div class="muted" style="margin-bottom:6px">Raza</div>
           <div id="breed_box" class="small"></div>
         </div>
         <div style="margin-top:14px">
-          <div class="head muted" style="border:none;padding:0">Notas y razones</div>
+          <div class="muted" style="margin-bottom:6px">Notas y razones</div>
           <ul id="reasons" class="clean"></ul>
         </div>
       </div>
-      <div class="footer small">UI reconstruida — 10 métricas, salud completa y badge IA/local.</div>
     </div>
   </div>
 <script>
-const E_METRICS=["Conformación","Línea dorsal","Angulación costillar","Profundidad de pecho","Aplomos","Lomo","Grupo/muscling posterior","Balance anterior-posterior","Ancho torácico","Inserción de cola"];
+const METRICS=["Conformación","Línea dorsal","Angulación costillar","Profundidad de pecho","Aplomos","Lomo","Grupo/muscling posterior","Balance anterior-posterior","Ancho torácico","Inserción de cola"];
 function colorClass(v){if(v==null||isNaN(+v))return"";const n=+v;if(n>=7.5)return"ok";if(n>=6.5)return"mid";if(n>=5.5)return"warn";return"bad";}
-function sortRubric(r){const map=new Map(E_METRICS.map((k,i)=>[k,i]));return(r||[]).filter(x=>x&&x.name&&!/^bcs$/i.test(x.name)&&!/^riesgo$/i.test(x.name)).sort((a,b)=>(map.get(a.name)??99)-(map.get(b.name)??99));}
+function sortRubric(r){const map=new Map(METRICS.map((k,i)=>[k,i]));return(r||[]).filter(x=>x&&x.name&&!/^bcs$/i.test(x.name)&&!/^riesgo$/i.test(x.name)).sort((a,b)=>(map.get(a.name)??99)-(map.get(b.name)??99));}
 function render(d){
   const eng=d.engine||(d.breed_status==="active"?"ai":"fallback"); const b=document.getElementById("engine");
   b.style.display="inline-flex"; b.className="badge "+(eng==="ai"?"b-ai":"b-fb"); b.textContent=eng==="ai"?"IA activa":"Motor local (fallback)";
@@ -111,12 +106,31 @@ function render(d){
   const bb=document.getElementById("breed_box"); const br=d.breed||{}; bb.innerHTML=br.name?`<strong>${br.name}</strong> · conf=${(br.confidence??"—")}<br><span class="muted">${br.explanation||""}</span>`:"<span class='muted'>Clasificación no disponible.</span>";
   const R=Array.isArray(d.reasons)?d.reasons:[]; const rl=document.getElementById("reasons"); rl.innerHTML=""; R.forEach(x=>{const li=document.createElement("li"); li.textContent=x; rl.appendChild(li);});
 }
-function setLoading(on){document.getElementById("go").disabled=on; document.getElementById("spin").className="loader "+(on?"on":"");}
-async function evaluate(file,mode){const fd=new FormData(); fd.append("file",file); fd.append("mode",mode||"levante"); const res=await fetch("/evaluate",{method:"POST",body:fd}); if(!res.ok) throw new Error("HTTP "+res.status); return await res.json();}
-document.getElementById("file").addEventListener("change",e=>{const f=e.target.files?.[0]; const box=document.getElementById("preview"); if(!f){box.innerHTML="<span class='muted'>vista previa</span>"; return;}
-  const img=document.createElement("img"); img.alt="preview"; box.innerHTML=""; box.appendChild(img); const url=URL.createObjectURL(f); img.onload=()=>URL.revokeObjectURL(url); img.src=url;});
-document.getElementById("go").addEventListener("click",async()=>{const f=document.getElementById("file").files?.[0]; const mode=document.getElementById("mode").value; if(!f){alert("Selecciona una imagen.");return;}
-  try{setLoading(true); const data=await evaluate(f,mode); render(data.result||data);}catch(err){console.error(err); alert("Error evaluando: "+err.message);}finally{setLoading(false);} });
+function showErr(msg){const e=document.getElementById('err'); e.textContent=msg; e.className='alert bad on';}
+async function postEval(url,file,mode){
+  const fd=new FormData(); fd.append('file',file); fd.append('mode',mode||'levante');
+  const r=await fetch(url,{method:'POST',body:fd}); if(!r.ok){const t=await r.text().catch(()=> ''); throw new Error(`HTTP ${r.status} ${t}`);} return await r.json();
+}
+async function evaluate(file,mode){
+  try{ return await postEval('/evaluate',file,mode); }
+  catch(e1){ if(/404/.test(e1.message)||/Not Found/i.test(e1.message)){ return await postEval('/api/evaluate',file,mode); } throw e1; }
+}
+document.getElementById('file').addEventListener('change',e=>{
+  const f=e.target.files?.[0]; const box=document.getElementById('preview');
+  if(!f){ box.innerHTML='<span class="muted">vista previa</span>'; return; }
+  const img=document.createElement('img'); img.alt='preview'; box.innerHTML=''; box.appendChild(img);
+  const url=URL.createObjectURL(f); img.onload=()=>URL.revokeObjectURL(url); img.src=url;
+});
+document.getElementById('go').addEventListener('click', async ()=>{
+  const f=document.getElementById('file').files?.[0]; const mode=document.getElementById('mode').value;
+  if(!f){ showErr('Selecciona una imagen.'); return; }
+  try{
+    const data = await evaluate(f, mode);
+    render(data.result||data);
+  }catch(err){
+    console.error(err); showErr(err.message);
+  }
+});
 </script>
 </body>
 </html>
