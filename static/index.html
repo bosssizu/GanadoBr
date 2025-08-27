@@ -196,3 +196,37 @@ function renderResult(data){
   if(document.readyState!='loading') ensure(); else document.addEventListener('DOMContentLoaded', ensure);
 })();
 </script>
+
+<script>
+(function(){
+  function $(id){return document.getElementById(id)}
+  function log(txt){var o=$('overlay'); var p=$('ovpre'); if(!o||!p) return; o.style.display='block'; p.textContent=String(txt)}
+  function setPostStatus(s){var ps=$('post_status'); if(ps) ps.textContent = ' · POST: '+s}
+  function wire(){
+    var btn=$('eval'); if(!btn) return;
+    if(btn.__wired) return; btn.__wired=true;
+    btn.addEventListener('click', async function(ev){
+      ev.preventDefault(); ev.stopPropagation();
+      try{
+        const fi=document.querySelector('input[type=file]'); 
+        if(!fi || !fi.files || !fi.files[0]){ alert('Selecciona una imagen'); return; }
+        const file=fi.files[0];
+        const modeSel=document.querySelector('select'); const mode=(modeSel && modeSel.value) || 'levante';
+        const fd=new FormData(); fd.set('file', file); fd.set('mode', mode);
+        const url=location.origin + '/evaluate';
+        setPostStatus('enviando...');
+        const res=await fetch(url,{method:'POST',body:fd});
+        let data; try{ data=await res.json(); }catch(e){ data={status:'error',code:res.status,message:'non-JSON response'}; }
+        log('status:'+res.status+'\n'+JSON.stringify(data,null,2));
+        setPostStatus(res.status);
+        const b=$('banner');
+        if(!res.ok || (data && data.status==='error')){ b.innerHTML='<div class="banner err">⚠️ '+(data.message||res.statusText)+'</div>'; }
+        else { b.innerHTML='<div class="banner ok">✅ Evaluación completada</div>'; }
+        // Render (use hook if exists)
+        if(window.__gb_after_fetch){ try{ window.__gb_after_fetch(data,res);}catch(e){ console.error(e); } }
+      }catch(e){ setPostStatus('error'); log('ex: '+e.message); alert('Fallo al evaluar: '+e.message); }
+    });
+  }
+  if(document.readyState!='loading') wire(); else document.addEventListener('DOMContentLoaded', wire);
+})();
+</script>
