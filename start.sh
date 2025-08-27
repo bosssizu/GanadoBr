@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
-export PYTHONUNBUFFERED=1
-export PORT=${PORT:-8000}
-exec uvicorn asgi:app --host 0.0.0.0 --port $PORT --timeout-keep-alive 5
+set -euo pipefail
+PORT="${PORT:-8000}"
+echo "Starting GanadoBravo v38 (real pipeline ready) on 0.0.0.0:${PORT}"
+exec uvicorn main:app --host 0.0.0.0 --port "${PORT}" --proxy-headers --forwarded-allow-ips="*" --log-level info --timeout-keep-alive 75
