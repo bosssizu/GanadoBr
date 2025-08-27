@@ -1,392 +1,122 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>GanadoBravo — Evaluación</title>
-  <meta name="theme-color" content="#0B1220"/>
-  <meta name="api-base" content="">
-  <script src="https://cdn.tailwindcss.com"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GanadoBravo — Evaluación (v40y)</title>
   <style>
-    :root{ color-scheme: light; }
-    body{ background:#f6f8fb; }
-    .card{ background:#fff; border-radius:1rem; box-shadow:0 6px 20px rgba(17,24,39,.06); }
-    .pill{ display:inline-block; padding:.25rem .62rem; border-radius:9999px; font-size:.75rem; font-weight:600; }
-    .pill-green{ background:#e9f9ee; color:#0a7a3b; }
-    .pill-amber{ background:#fff4e5; color:#8a5300; }
-    .pill-red{ background:#feeaea; color:#9b1c1c; }
-    .sticky-cta{ position:sticky; bottom:0; background:linear-gradient(180deg, rgba(246,248,251,.0), rgba(246,248,251,1) 30%); padding-top:.5rem; }
-  .engine-badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;margin-left:8px}
-.engine-ai{background:#dcfce7;color:#065f46}
-.engine-fallback{background:#fee2e2;color:#7f1d1d}
-.rubric-table td,.rubric-table th{padding:6px 8px;border-bottom:1px solid #eee}
-.rubric-score{font-weight:600}
-</style>
+    :root{ --bg:#0b1220; --card:#0f172a; --muted:#94a3b8; --text:#e2e8f0; --accent:#38bdf8;
+           --ok:#16a34a; --warn:#d97706; --bad:#dc2626; --chip:#0b2a3a; }
+    *{box-sizing:border-box} body{margin:0;background:#0b1220;color:var(--text);
+    font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+    header{padding:18px 22px;border-bottom:1px solid #0f2540;background:#0b1220;position:sticky;top:0;z-index:10}
+    header h1{margin:0;font-weight:800;letter-spacing:.3px}
+    .wrap{display:grid;grid-template-columns:340px 1fr; gap:18px; padding:18px; max-width:1300px;margin:0 auto}
+    .card{background:linear-gradient(180deg,#0b1220,#071522) padding-box, linear-gradient(180deg,#0e2033,#09213b) border-box;
+          border:1px solid transparent;border-radius:14px;box-shadow:0 4px 24px rgba(0,0,0,.35)}
+    .card .head{padding:14px 16px;border-bottom:1px dashed #11334d;color:#a1b3c5;font-weight:700}
+    .card .body{padding:14px 16px} .muted{color:var(--muted)} .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+    .btn{background:#11263b;border:1px solid #15344e;color:#dbeafe;padding:9px 14px;border-radius:10px;cursor:pointer}
+    .btn:disabled{opacity:.6;cursor:not-allowed}
+    input[type=file]{max-width:100%} select{background:#0f2033;color:var(--text);border:1px solid #15344e;border-radius:10px;padding:8px 10px}
+    .preview{width:100%;aspect-ratio:1/1;border:1px dashed #214561;border-radius:12px;display:flex;align-items:center;justify-content:center;
+             overflow:hidden;background:#0a1a29}
+    .preview img{max-width:100%;height:100%;object-fit:cover}
+    .badge{font-size:11px;padding:4px 8px;border-radius:999px;display:inline-flex;align-items:center;gap:6px}
+    .b-ai{background:#0b3b24;color:#b4f2cf;border:1px solid #166a42} .b-fb{background:#431515;color:#fecaca;border:1px solid #7f1d1d}
+    .pill{background:#0b2a3a;color:#8dd7ff;border:1px solid #104a6a;border-radius:999px;padding:4px 8px;font-size:12px}
+    .decision{font-size:28px;font-weight:900;letter-spacing:.2px}
+    .kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr)); gap:10px; margin-top:10px}
+    .kpi{background:#0f1828;border:1px solid #15344e;border-radius:12px;padding:10px 12px}
+    .kpi .lab{font-size:12px;color:#94a3b8} .kpi .val{font-size:18px;font-weight:800}
+    table{width:100%;border-collapse:collapse} th,td{padding:10px;border-bottom:1px solid #0f2540;vertical-align:top}
+    th{color:#93a4b6;font-weight:700;text-align:left} .score{font-weight:700;text-align:right}
+    .score.ok{color:#22c55e} .score.mid{color:#a3e635} .score.warn{color:#f59e0b} .score.bad{color:#ef4444}
+    ul.clean{list-style:none;padding-left:18px} .small{font-size:12px} .footer{padding:12px 16px;color:#7b8da1}
+    .loader{display:none} .loader.on{display:inline-block;border:3px solid #173b58;border-top-color:#4cc3ff;border-radius:50%;
+           width:16px;height:16px;animation:spin 1s linear infinite} @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
 </head>
-<body class="min-h-screen">
-  <header class="bg-white/90 backdrop-blur border-b border-gray-200 sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-      <h1 class="text-lg md:text-2xl font-bold tracking-tight text-gray-900">GanadoBravo — Evaluación</h1>
-      <div id="err" class="text-sm text-red-600 font-medium"></div>
+<body>
+  <header><h1>GanadoBravo — Evaluación <span class="pill">v40y UI</span></h1></header>
+  <div class="wrap">
+    <div class="card">
+      <div class="head">Entrada</div>
+      <div class="body">
+        <div class="row" style="margin-bottom:10px">
+          <input id="file" type="file" accept="image/*">
+          <select id="mode">
+            <option value="levante" selected>Levante (default)</option>
+            <option value="vaca_flaca">Vaca flaca</option>
+            <option value="engorde">Engorde</option>
+          </select>
+          <button id="go" class="btn">Evaluar <span id="spin" class="loader"></span></button>
+        </div>
+        <div class="preview" id="preview"><span class="muted">vista previa</span></div>
+        <div style="margin-top:10px" class="small muted">
+          <a href="/api/diag" target="_blank" class="muted">/api/diag</a> · <a href="/healthz" target="_blank" class="muted">/healthz</a>
+        </div>
+      </div>
     </div>
-  </header>
-
-  <main class="max-w-7xl mx-auto px-4 py-4 md:py-8 grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
-    <section class="space-y-4 lg:col-span-1">
-      <div class="card p-4 md:p-5">
-        <h2 class="text-base font-semibold text-gray-900 mb-3">Entrada</h2>
-        <div class="space-y-3">
-          <label class="block">
-            <span class="text-sm text-gray-700">Imagen (JPG/PNG)</span>
-            <input id="file" type="file" accept="image/*" class="mt-1 w-full text-sm file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-gray-900 file:text-white hover:file:opacity-90" />
-          </label>
-          <label class="block">
-            <span class="text-sm text-gray-700">Modo</span>
-            <select id="mode" class="mt-1 w-full rounded-lg border-gray-300 focus:ring-2 focus:ring-gray-900">
-              <option value="levante">Levante</option>
-              <option value="engorde">Engorde</option>
-              <option value="vaca_flaca">Vaca flaca</option>
-            </select>
-          </label>
+    <div class="card">
+      <div class="head">Resultado <span id="engine" class="badge b-fb" style="display:none"></span></div>
+      <div class="body">
+        <div class="decision" id="decision">—</div>
+        <div class="kpi-grid">
+          <div class="kpi"><div class="lab">BCS</div><div class="val" id="bcs">—</div></div>
+          <div class="kpi"><div class="lab">Puntaje global</div><div class="val" id="gscore">—</div></div>
+          <div class="kpi"><div class="lab">Riesgo</div><div class="val" id="risk">—</div></div>
+          <div class="kpi"><div class="lab">Bono posterior</div><div class="val" id="bonus">0.00</div></div>
         </div>
-
-        <div class="sticky-cta mt-4 md:mt-6">
-          <button id="evaluateBtn" type="button" class="w-full py-3 rounded-xl bg-gray-900 text-white font-semibold hover:opacity-90 active:opacity-100 transition">
-            Evaluar
-          </button>
-          <p id="meta" class="mt-2 text-xs text-gray-500 text-center">—</p>
-          <div id="netErr" class="hidden mt-2 p-3 rounded-lg bg-red-50 text-red-700 text-sm"></div>
+        <div style="margin-top:18px">
+          <div class="head muted" style="border:none;padding:0">Rúbrica detallada <span id="rubric_count" class="small"></span></div>
+          <table><thead>
+            <tr><th style="width:34%">Métrica</th><th style="width:10%;text-align:right">Puntaje</th><th>Observaciones</th></tr>
+          </thead><tbody id="rubric_tbody"></tbody></table>
         </div>
-      </div>
-
-      <div class="card p-4 md:p-5">
-        <div class="text-sm text-gray-600 mb-2">Vista previa</div>
-        <div class="w-full aspect-[4/3] bg-gray-100 rounded-xl flex items-center justify-center overflow-hidden">
-          <img id="preview" class="max-h-full max-w-full object-contain" alt="vista previa" />
+        <div style="margin-top:14px">
+          <div class="head muted" style="border:none;padding:0">Salud</div>
+          <ul id="health" class="clean"></ul>
+        </div>
+        <div style="margin-top:14px">
+          <div class="head muted" style="border:none;padding:0">Raza</div>
+          <div id="breed_box" class="small"></div>
+        </div>
+        <div style="margin-top:14px">
+          <div class="head muted" style="border:none;padding:0">Notas y razones</div>
+          <ul id="reasons" class="clean"></ul>
         </div>
       </div>
-
-      <div class="card p-4 md:p-5">
-        <h3 class="font-semibold text-gray-900 mb-2">Notas y razones</h3>
-        <ul id="reasons" class="list-disc list-inside text-sm text-gray-700 space-y-1"></ul>
-      </div>
-    </section>
-
-    <section class="lg:col-span-2 space-y-4">
-      <div class="card p-4 md:p-5">
-        <div class="flex flex-wrap items-center gap-2 text-sm">
-          <span class="text-gray-500">Calidad de entrada:</span>
-          <span id="stabPill" class="pill">—</span>
-          <span id="auctionPill" class="pill">—</span>
-        </div>
-        <div id="visBox" class="mt-3 text-sm text-gray-700"></div>
-      </div>
-
-      <div class="card p-4 md:p-5">
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-          <h2 class="text-xl font-semibold text-gray-900">Resultado</h2><span id="engine_badge" class="engine-badge engine-fallback" style="display:none"></span>
-          <div class="text-sm text-gray-600">Presentación optimizada para móviles</div>
-        </div>
-        <div class="mb-3" id="decisionStrip"></div>
-        <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4" id="scoreCards"></div>
-      </div>
-
-      <div id="rubricCard" class="card p-3 md:p-5">
-        <div class="flex items-center justify-between gap-2">
-          <h3 class="font-semibold text-gray-900">Rúbrica detallada
-<table class="rubric-table" style="width:100%;margin-top:8px">
-  <thead><tr><th style="text-align:left">Métrica</th><th style="text-align:right">Puntaje</th><th style="text-align:left">Observaciones</th></tr></thead>
-  <tbody id="rubric_tbody"></tbody>
-</table></h3>
-          <span class="text-xs text-gray-500">Se actualiza con cada evaluación</span>
-        </div>
-        <div class="overflow-x-auto mt-3">
-          <table class="min-w-full text-sm">
-            <thead class="text-left text-gray-600">
-              <tr>
-                <th class="py-2 pr-4">Métrica</th>
-                <th class="py-2 pr-4">Puntaje</th>
-                <th class="py-2">Observaciones</th>
-              </tr>
-            </thead>
-            <tbody id="rubricTbl" class="align-top text-gray-800"></tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="card p-4 md:p-5">
-        <h3 class="font-semibold text-gray-900">Salud<ul id="health_list" style="margin-top:6px"></ul></h3>
-        <div id="healthBox" class="mt-2 text-sm text-gray-800"></div>
-      </div>
-
-      <div class="card p-4 md:p-5">
-        <h3 class="font-semibold text-gray-900">Raza</h3>
-        <div id="breedBox" class="mt-2 text-sm text-gray-800"></div>
-      </div>
-    </section>
-  </main>
-
-  <script>
-  function htmlSet(id, html){ var el=document.getElementById(id); if(el) el.innerHTML=html; }
-  function safeSet(id, txt){ var el=document.getElementById(id); if(el) el.textContent=txt; }
-
-  function pillClass(dec){
-    var d = String(dec||'').toUpperCase();
-    if (d.startsWith('COMPRAR')) return 'pill pill-green';
-    if (d.startsWith('CONSIDERAR')) return 'pill pill-amber';
-    return 'pill pill-red';
-  }
-  function barClass(dec){
-    var d = String(dec||'').toUpperCase();
-    if (d.startsWith('COMPRAR')) return 'bg-green-600';
-    if (d.startsWith('CONSIDERAR')) return 'bg-amber-600';
-    return 'bg-red-600';
-  }
-
-  function renderDecisionStrip(d){
-    var level = String(d.decision_level||d.decision||'').toUpperCase();
-    var cats = [
-      {key:'NO_COMPRAR',        label:'No comprar'},
-      {key:'CONSIDERAR_BAJO',   label:'Considerar (bajo)'},
-      {key:'CONSIDERAR_ALTO',   label:'Considerar (alto)'},
-      {key:'COMPRAR',           label:'Comprar'}
-    ];
-    var items = cats.map(function(c){
-      var active = (level===c.key);
-      var cls = active ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-800';
-      return '<div class="px-3 py-2 rounded-lg text-xs font-medium '+cls+'">'+c.label+'</div>';
-    }).join('');
-    return '<div class="grid grid-cols-2 sm:grid-cols-4 gap-2">'+items+'</div>';
-  }
-
-  function renderScorecards(d){
-    var items = [
-      { key:'decision_text',    label:'Decisión' },
-      { key:'global_score',     label:'Puntaje global' },
-      { key:'bcs',              label:'BCS' },
-      { key:'risk',             label:'Riesgo' },
-      { key:'posterior_bonus',  label:'Bono posterior' },
-      { key:'notes',            label:'Notas' }
-    ];
-    var cards = items.map(function(it){
-      var val = d[it.key];
-      if (val==null || val==='') return '';
-      if (it.key==='decision_text'){
-        return '<div class="card p-4">'
-          + '<div class="text-sm text-gray-500">'+it.label+'</div>'
-          + '<div class="mt-1 flex items-center gap-2"><span class="'+pillClass(val)+'">'+val+'</span></div>'
-          + '<div class="mt-3 w-full h-2 rounded-full bg-gray-100 overflow-hidden"><div class="h-full '+barClass(val)+'" style="width:'+Math.min(100, Math.max(0, Number(d.global_score||0)*10))+'%"></div></div>'
-          + '</div>';
-      }
-      return '<div class="card p-4">'
-        + '<div class="text-sm text-gray-500">'+it.label+'</div>'
-        + '<div class="mt-1 text-lg font-semibold text-gray-900">'+(typeof val==='number'? Number(val).toFixed(2) : val)+'</div>'
-        + '</div>';
-    }).join('');
-    htmlSet('scoreCards', cards);
-  }
-
-  function renderBreed(b){
-    if (!b) return '—';
-    var name = b.name || b.best || '—';
-    var conf = (b.confidence!=null)? Number(b.confidence).toFixed(2) : (b.conf||null);
-    var extra = b.explanation || b.notes || 'Posibles rasgos de entrecruzamiento / criollo';
-    return '<div class="flex flex-col gap-1">'
-      + '<div><span class="font-semibold">'+name+'</span>'+(conf!=null? ' · conf='+conf : '')+'</div>'
-      + (extra? '<div class="text-sm text-gray-600">'+extra+'</div>' : '')
-      + '</div>';
-  }
-
-  function renderHealth(health){
-    if (!Array.isArray(health) || !health.length){ return '—'; }
-    return '<ul class="space-y-1">' + health.map(function(h){
-      var sev = String(h.severity||'').toLowerCase();
-      var name = h.name || '—';
-      var status = (sev==='confirmada') ? 'Confirmada' : (sev==='alerta' ? 'Alerta' : 'Descartado');
-      var icon = (sev==='confirmada') ? '🛑' : (sev==='alerta' ? '⚠️' : '✓');
-      return '<li class="flex items-start"><span class="mr-2">'+icon+'</span><span><span class="font-medium">'+name+'</span> = '+status+'</span></li>';
-    }).join('') + '</ul>';
-  }
-
-  function render(d){
-    var qc = d.qc||{};
-    safeSet('meta', 'modo='+(d.mode||'-')+' · conf='+Number(d.global_conf||0).toFixed(2)+' · nivel='+(d.decision_level||'-'));
-    if (qc.visible_ratio!=null){
-      htmlSet('visBox', 'Porción visible: '+Math.round((qc.visible_ratio*100))+'%');
-    } else {
-      htmlSet('visBox', '');
-    }
-    var stab = (qc.stability || qc.input_quality || '—');
-    var sp = document.getElementById('stabPill'); if (sp){ sp.className = 'pill ' + (stab==='alta'?'pill-green':(stab==='media'?'pill-amber':'pill-red')); sp.textContent = 'Estabilidad: '+stab; }
-    var ap = document.getElementById('auctionPill'); if (ap){ ap.className = 'pill pill-amber'; ap.textContent = 'Rúbrica: activa'; }
-    htmlSet('decisionStrip', renderDecisionStrip(d));
-    renderScorecards(d);
-    var rub = (d.rubric || []).map(function(item){
-      var score = Number(item.score); if (!isFinite(score)) score = 0;
-      return '<tr><td class="py-2 pr-4 font-medium">'+(item.name||'-')+'</td><td class="py-2 pr-4">'+score.toFixed(1)+'</td><td class="py-2">'+(item.obs||'')+'</td></tr>';
-    }).join('');
-    htmlSet('rubricTbl', rub);
-    var r = (d.reasons || []).map(function(t){ return '<li>'+t+'</li>'; }).join('');
-    htmlSet('reasons', r);
-    htmlSet('healthBox', renderHealth(d.health));
-    htmlSet('breedBox', renderBreed(d.breed || d.breed_ai || d.breeds));
-  }
-
-  function getApiBase(){
-    var m=document.querySelector('meta[name="api-base"]');
-    var v = (m && m.content)? m.content.trim() : '';
-    if (!v) return '';
-    if (v.endsWith('/')) v = v.slice(0,-1);
-    return v;
-  }
-
-  function showNetErr(msg){
-    var box = document.getElementById('netErr');
-    if (!box) return;
-    box.classList.remove('hidden');
-    box.innerHTML = msg;
-    console.error('[GanadoBravo] ', msg);
-  }
-  function clearNetErr(){
-    var box = document.getElementById('netErr');
-    if (!box) return;
-    box.classList.add('hidden');
-    box.textContent = '';
-  }
-
-  async function apiFetch(path, opts, timeoutMs){
-    if (opts===undefined) opts = {};
-    if (timeoutMs===undefined) timeoutMs = 30000;
-    var base = getApiBase();
-    var url = (base? base : '') + path;
-    var ctrl = new AbortController();
-    var t = setTimeout(function(){ try{ ctrl.abort('timeout'); }catch(_){} }, timeoutMs);
-    var res, txt;
-    try{
-      res = await fetch(url, Object.assign({ signal: ctrl.signal }, opts));
-      txt = await res.text();
-    }catch(e){
-      clearTimeout(t);
-      showNetErr('Network error: ' + (e && e.message ? e.message : e));
-      throw e;
-    }
-    clearTimeout(t);
-    if (!res.ok){
-      showNetErr('HTTP ' + res.status + ' on ' + path + (txt? (': ' + txt.slice(0,300)) : ''));
-      throw new Error('HTTP ' + res.status);
-    }
-    return txt;
-  }
-
-  document.addEventListener('DOMContentLoaded', function(){
-    var fileEl = document.getElementById('file');
-    var preview = document.getElementById('preview');
-    var btn = document.getElementById('evaluateBtn');
-    var err = document.getElementById('err');
-    var modeEl = document.getElementById('mode');
-
-    if (fileEl){
-      fileEl.addEventListener('change', function(ev){
-        window.currentFile = ev.target.files && ev.target.files[0] || null;
-        if (window.currentFile && preview){
-          var url = URL.createObjectURL(window.currentFile);
-          window.lastPreviewSrc = url;
-          preview.src = url;
-          preview.onload = function(){ try{ URL.revokeObjectURL(url); }catch(_){ } };
-        }
-      });
-    }
-
-    if (btn){
-      btn.addEventListener('click', async function(){
-        if (!window.currentFile){
-          if (err) err.textContent = 'Selecciona una imagen primero.';
-          return;
-        }
-        if (err) err.textContent = '';
-        clearNetErr();
-        btn.disabled = true;
-        btn.textContent = 'Evaluando…';
-        var fd = new FormData();
-        fd.append('mode', (modeEl && modeEl.value) ? modeEl.value : 'levante');
-        fd.set('file', window.currentFile, window.currentFile.name);
-        try{
-          var txt = await apiFetch('/evaluate', { method:'POST', body: fd, cache:'no-store' }, 30000);
-          var data = JSON.parse(txt);
-          var payload = Array.isArray(data) ? ((data[0] && (data[0].result||data[0])) || {}) : (data.result || data);
-          render(payload);
-          if (preview && window.lastPreviewSrc) preview.src = window.lastPreviewSrc;
-        }catch(ex){
-          var msg = (ex && ex.message) ? ex.message : String(ex);
-          if (err) err.textContent = 'Error evaluando';
-          console.error('[GanadoBravo] evaluate failed:', msg);
-        }finally{
-          btn.disabled = false;
-          btn.textContent = 'Evaluar';
-        }
-      });
-    }
-  });
-  </script>
-
+      <div class="footer small">UI reconstruida — 10 métricas, salud completa y badge IA/local.</div>
+    </div>
+  </div>
 <script>
-(function(){
-  const fmtScoreColor = (v)=>{
-    if (v===null || v===undefined || isNaN(v)) return '';
-    const n = Number(v);
-    if (n >= 7.5) return 'color:#16a34a';    // verde
-    if (n >= 6.5) return 'color:#65a30d';    // lima
-    if (n >= 5.5) return 'color:#d97706';    // ámbar
-    return 'color:#dc2626';                  // rojo
-  };
-
-  window.__gb_after_fetch = function(data,res){
-    try{
-      // Engine badge
-      const b = document.getElementById('engine_badge');
-      if (b){
-        const eng = (data.engine || (data.breed_status==='active'?'ai':'fallback'));
-        b.style.display='inline-block';
-        b.className = 'engine-badge ' + (eng==='ai'?'engine-ai':'engine-fallback');
-        b.textContent = (eng==='ai'?'IA activa':'Motor local (fallback)');
-        b.title = (eng==='ai'?'Evaluación completa por modelo de IA.':'Evaluación local por reglas. Activa OPENAI_API_KEY para IA.');
-      }
-
-      // Rubric (10 métricas)
-      const tb = document.getElementById('rubric_tbody');
-      if (tb){
-        tb.innerHTML = '';
-        const rub = Array.isArray(data.rubric)? data.rubric : [];
-        rub.forEach(row=>{
-          const tr = document.createElement('tr');
-          const td1 = document.createElement('td'); td1.textContent = row.name || '';
-          const td2 = document.createElement('td'); td2.style.textAlign='right'; td2.className='rubric-score'; 
-          td2.textContent = (row.score!=null? Number(row.score).toFixed(2) : '—');
-          td2.style = fmtScoreColor(row.score);
-          const td3 = document.createElement('td'); td3.textContent = row.obs || '';
-          tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3);
-          tb.appendChild(tr);
-        });
-      }
-
-      // Health list (todas las enfermedades)
-      const hl = document.getElementById('health_list');
-      if (hl){
-        hl.innerHTML='';
-        const H = Array.isArray(data.health)? data.health : [];
-        H.forEach(h=>{
-          const li = document.createElement('li');
-          const status = (h.status||'').toLowerCase();
-          const ok = status.includes('descart');
-          li.textContent = `${h.name} = ${ok?'Descartado':'Sospecha'}`;
-          li.style.color = ok ? '#16a34a' : '#dc2626';
-          hl.appendChild(li);
-        });
-      }
-    }catch(e){ console.error('render error', e); }
-  };
-})();
+const E_METRICS=["Conformación","Línea dorsal","Angulación costillar","Profundidad de pecho","Aplomos","Lomo","Grupo/muscling posterior","Balance anterior-posterior","Ancho torácico","Inserción de cola"];
+function colorClass(v){if(v==null||isNaN(+v))return"";const n=+v;if(n>=7.5)return"ok";if(n>=6.5)return"mid";if(n>=5.5)return"warn";return"bad";}
+function sortRubric(r){const map=new Map(E_METRICS.map((k,i)=>[k,i]));return(r||[]).filter(x=>x&&x.name&&!/^bcs$/i.test(x.name)&&!/^riesgo$/i.test(x.name)).sort((a,b)=>(map.get(a.name)??99)-(map.get(b.name)??99));}
+function render(d){
+  const eng=d.engine||(d.breed_status==="active"?"ai":"fallback"); const b=document.getElementById("engine");
+  b.style.display="inline-flex"; b.className="badge "+(eng==="ai"?"b-ai":"b-fb"); b.textContent=eng==="ai"?"IA activa":"Motor local (fallback)";
+  document.getElementById("decision").textContent=d.decision_text||d.decision_level||"—";
+  document.getElementById("bcs").textContent=d.bcs!=null?(+d.bcs).toFixed(2):"—";
+  document.getElementById("gscore").textContent=d.global_score!=null?(+d.global_score).toFixed(2):"—";
+  document.getElementById("risk").textContent=d.risk!=null?(+d.risk).toFixed(2):"—";
+  if(d.posterior_bonus!=null)document.getElementById("bonus").textContent=(+d.posterior_bonus).toFixed(2);
+  const tbody=document.getElementById("rubric_tbody"); tbody.innerHTML=""; const rub=sortRubric(d.rubric); document.getElementById("rubric_count").textContent=`(métricas: ${rub.length}/10)`;
+  rub.forEach(r=>{const tr=document.createElement("tr"); const td1=document.createElement("td"); td1.textContent=r.name||"";
+    const td2=document.createElement("td"); td2.className="score "+colorClass(r.score); td2.textContent=r.score!=null?(+r.score).toFixed(2):"—"; td2.style.textAlign="right";
+    const td3=document.createElement("td"); td3.textContent=r.obs||""; tr.append(td1,td2,td3); tbody.appendChild(tr);});
+  const hl=document.getElementById("health"); hl.innerHTML=""; (Array.isArray(d.health)?d.health:[]).forEach(h=>{const li=document.createElement("li");
+    const ok=(h.status||"").toLowerCase().includes("descart"); li.textContent=`${h.name} = ${ok?"Descartado":"Sospecha"}`; li.style.color=ok?"#22c55e":"#ef4444"; hl.appendChild(li);});
+  const bb=document.getElementById("breed_box"); const br=d.breed||{}; bb.innerHTML=br.name?`<strong>${br.name}</strong> · conf=${(br.confidence??"—")}<br><span class="muted">${br.explanation||""}</span>`:"<span class='muted'>Clasificación no disponible.</span>";
+  const R=Array.isArray(d.reasons)?d.reasons:[]; const rl=document.getElementById("reasons"); rl.innerHTML=""; R.forEach(x=>{const li=document.createElement("li"); li.textContent=x; rl.appendChild(li);});
+}
+function setLoading(on){document.getElementById("go").disabled=on; document.getElementById("spin").className="loader "+(on?"on":"");}
+async function evaluate(file,mode){const fd=new FormData(); fd.append("file",file); fd.append("mode",mode||"levante"); const res=await fetch("/evaluate",{method:"POST",body:fd}); if(!res.ok) throw new Error("HTTP "+res.status); return await res.json();}
+document.getElementById("file").addEventListener("change",e=>{const f=e.target.files?.[0]; const box=document.getElementById("preview"); if(!f){box.innerHTML="<span class='muted'>vista previa</span>"; return;}
+  const img=document.createElement("img"); img.alt="preview"; box.innerHTML=""; box.appendChild(img); const url=URL.createObjectURL(f); img.onload=()=>URL.revokeObjectURL(url); img.src=url;});
+document.getElementById("go").addEventListener("click",async()=>{const f=document.getElementById("file").files?.[0]; const mode=document.getElementById("mode").value; if(!f){alert("Selecciona una imagen.");return;}
+  try{setLoading(true); const data=await evaluate(f,mode); render(data.result||data);}catch(err){console.error(err); alert("Error evaluando: "+err.message);}finally{setLoading(false);} });
 </script>
-
 </body>
 </html>
