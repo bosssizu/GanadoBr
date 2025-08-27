@@ -47,6 +47,19 @@ h2{margin-top:0} .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .banner{padding:10px;border-radius:8px;margin:10px 0;font-weight:600}
 .banner.err{background:#fee2e2;color:#7f1d1d}
 .banner.ok{background:#dcfce7;color:#065f46}
+
+.gbcards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:12px 0}
+.gbcard{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px}
+.gbcard .k{font-size:12px;color:#6b7280}
+.gbcard .v{font-size:20px;font-weight:700}
+.gbpill{display:inline-block;padding:.35rem .6rem;border-radius:999px;font-weight:700}
+.gbpill.buy{background:#22c55e22;color:#166534}
+.gbpill.hi{background:#f59e0b22;color:#7c2d12}
+.gbpill.low{background:#fde04722;color:#854d0e}
+.gbpill.no{background:#ef444422;color:#7f1d1d}
+.gbtbl{width:100%;border-collapse:collapse;margin-top:6px}
+.gbtbl td,.gbtbl th{padding:.45rem .5rem;border-bottom:1px solid #eee}
+.gbtbl td:nth-child(2){text-align:right}
 </style></head>
 <body><div class="container">
 <div class="card">
@@ -178,6 +191,59 @@ function renderResult(data){
   };
 })();
 </script>
+
+
+<script>
+(function(){
+  function $id(x){return document.getElementById(x)}
+  function to2(x){ if(x===undefined||x===null) return '—'; let n=Number(x); if(Number.isNaN(n)) return String(x); return (n%1===0)? n.toFixed(0): n.toFixed(2); }
+  function pillClass(level){ if(level==='COMPRAR') return 'buy'; if(level==='CONSIDERAR_ALTO') return 'hi'; if(level==='CONSIDERAR_BAJO') return 'low'; return 'no'; }
+
+  function ensureBlock(){
+    if($id('gb-result-block')) return $id('gb-result-block');
+    // choose anchor: after jsonbox if exists, else after h2 Resultado
+    var anchor = $id('jsonbox') || document.querySelector('h2');
+    var wrap = document.createElement('div'); wrap.id='gb-result-block';
+    wrap.innerHTML = `
+      <div class="gbcards">
+        <div class="gbcard"><div class="k">Decisión</div><div class="v"><span id="gb_decision" class="gbpill no">—</span></div></div>
+        <div class="gbcard"><div class="k">BCS</div><div class="v" id="gb_bcs">—</div></div>
+        <div class="gbcard"><div class="k">Puntaje global</div><div class="v" id="gb_score">—</div></div>
+        <div class="gbcard"><div class="k">Riesgo</div><div class="v" id="gb_risk">—</div></div>
+      </div>
+      <section>
+        <h3>Rúbrica (10 métricas)</h3>
+        <table class="gbtbl"><thead><tr><th style="text-align:left">Métrica</th><th style="text-align:right">Puntaje</th><th style="text-align:left">Observaciones</th></tr></thead><tbody id="gb_rubric"></tbody></table>
+      </section>
+    `;
+    if(anchor && anchor.parentNode){ anchor.parentNode.insertBefore(wrap, anchor.nextSibling); }
+    else { document.body.appendChild(wrap); }
+    return wrap;
+  }
+
+  function renderInto(data){
+    ensureBlock();
+    var dec = $id('gb_decision'); if(dec){ dec.textContent = data.decision_text||'—'; dec.className = 'gbpill ' + pillClass(data.decision_level||''); }
+    var bcs=$id('gb_bcs'); if(bcs) bcs.textContent = to2(data.bcs);
+    var sc=$id('gb_score'); if(sc) sc.textContent = to2(data.global_score);
+    var rk=$id('gb_risk'); if(rk) rk.textContent = to2(data.risk);
+    var tb=$id('gb_rubric'); if(tb){ tb.innerHTML=''; (data.rubric||[]).forEach(function(r){ var tr=document.createElement('tr'); tr.innerHTML='<td>'+ (r.name||'—') +'</td><td>'+ to2(r.score) +'</td><td>'+ (r.obs||'') +'</td>'; tb.appendChild(tr); }); }
+  }
+
+  // Hook into evaluation success
+  var old = window.__gb_after_fetch;
+  window.__gb_after_fetch = function(data, res){
+    try{ renderInto(data); }catch(e){ console.error('dom-inject render error', e); }
+    if(typeof old==='function'){ try{ old(data,res);}catch(e){} }
+    // Also populate json box
+    var jb=$id('jsonbox'); if(jb){ try{ jb.textContent = JSON.stringify(data,null,2);}catch(e){} }
+  };
+
+  // Toggle for JSON box
+  var t = document.getElementById('togglejson');
+  if(t){ t.onclick = function(){ var jb=$id('jsonbox'); if(!jb) return; jb.style.display = (jb.style.display==='none'?'block':'none'); }; }
+
+})();</script>
 
 </body></html>
 
