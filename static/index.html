@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>GanadoBravo — Evaluación</title>
 <style>
-:root{--bg:#f5f7fb;--fg:#0f172a;--muted:#6b7280;--card:#fff;--ok:#16a34a;--bad:#ef4444;}
+:root{--bg:#f5f7fb;--fg:#0f172a;--muted:#6b7280;--card:#fff;--ok:#16a34a;--bad:#ef4444;--warn:#f59e0b;}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial}
 .container{max-width:1120px;margin:24px auto;padding:0 16px}
 .grid{display:grid;grid-template-columns:280px 1fr;gap:16px}
@@ -17,7 +17,7 @@
 .kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
 .kpi .tile{background:#fff;border:1px solid #eef2f7;border-radius:12px;padding:12px}
 .kpi .title{font-size:12px;color:#64748b}
-.kpi .value{font-size:20px;margin-top:6px}
+.kpi .value{font-size:20px;margin-top:6px;font-weight:700}
 .table{width:100%;border-collapse:collapse}
 .table th,.table td{padding:10px;border-bottom:1px solid #eef2f7;text-align:left;font-size:14px;vertical-align:top}
 .dot{width:10px;height:10px;border-radius:999px;display:inline-block;margin-right:6px}
@@ -26,6 +26,9 @@
 .preview{height:220px;background:#f1f5f9;border:1px dashed #e5e7eb;border-radius:12px;display:flex;align-items:center;justify-content:center}
 .preview img{max-height:100%;max-width:100%;object-fit:contain;border-radius:10px}
 .footer{color:#9ca3af;font-size:12px;margin-top:10px}
+/* Decision más grande y resaltada */
+.decision{font-size:28px;font-weight:800;margin-top:8px}
+.decision.bad{color:var(--bad)} .decision.mid{color:var(--warn)} .decision.good{color:var(--ok)}
 </style>
 </head>
 <body>
@@ -60,15 +63,14 @@
     <div class="card">
       <h3 class="h">Resultado</h3>
 
+      <div class="decision" id="k_decision">—</div>
+
       <div class="kpi" style="margin-top:12px">
         <div class="tile"><div class="title">BCS</div><div class="value" id="k_bcs">—</div></div>
         <div class="tile"><div class="title">Puntaje global</div><div class="value" id="k_global">—</div></div>
         <div class="tile"><div class="title">Riesgo</div><div class="value" id="k_risk">—</div></div>
         <div class="tile"><div class="title">Bono posterior</div><div class="value" id="k_bonus">—</div></div>
       </div>
-
-      <div style="height:10px"></div>
-      <div class="small" id="k_decision">Decisión: —</div>
 
       <div style="height:14px"></div>
       <h3 class="h">Rúbrica detallada</h3>
@@ -92,27 +94,7 @@
 </div>
 
 <script>
-// --- Delete any 'Calidad de entrada' cards injected by old bundles ---
-(function nukeQC(){
-  function kill(){
-    const texts=['Calidad de entrada','Estabilidad','Rúbrica:','Porción visible'];
-    const cards=[...document.querySelectorAll('.card,div,section')];
-    for(const card of cards){
-      const t=(card.textContent||'').trim();
-      if(!t) continue;
-      if(texts.some(x=>t.includes(x))){
-        // borra contenedor completo, no solo el span
-        const box = card.closest('.card') || card;
-        box.remove();
-      }
-    }
-  }
-  kill();
-  // si se vuelve a inyectar por React, eliminar otra vez
-  new MutationObserver(kill).observe(document.body,{childList:true,subtree:true});
-})();
-
-// --- Stable preview using DataURL + retry onerror ---
+// Stable preview using DataURL
 let previewData=null;
 const fileEl=document.getElementById('file');
 const previewImg=document.getElementById('previewImg');
@@ -125,9 +107,22 @@ fileEl.addEventListener('change',()=>{
 previewImg.addEventListener('error',()=>{ if(previewData) setTimeout(()=>previewImg.src=previewData,60); });
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden && previewData) previewImg.src=previewData; });
 
-// --- Evaluate ---
 document.getElementById('evalBtn').addEventListener('click', evaluate);
 function keepPreview(){ if(previewImg && previewData) previewImg.src=previewData; }
+
+function scoreToColor(score){
+  // score 0..10 -> hue 0..140 (rojo -> verde)
+  const s = Math.max(0, Math.min(10, Number(score)||0));
+  const hue = 0 + (140 * (s/10));
+  return `hsl(${hue}, 70%, 40%)`;
+}
+function paintDecision(level){
+  const el=document.getElementById('k_decision');
+  el.classList.remove('bad','mid','good');
+  if(level==='NO_COMPRAR'){ el.classList.add('bad'); }
+  else if(level==='CONSIDERAR_BAJO'){ el.classList.add('mid'); }
+  else if(level==='CONSIDERAR_ALTO' || level==='COMPRAR'){ el.classList.add('good'); }
+}
 
 async function evaluate(){
   const f=fileEl.files[0]; if(!f){ alert("Sube una imagen"); return; }
@@ -138,27 +133,48 @@ async function evaluate(){
   if(!res.ok){ alert('Error: '+res.status+' '+await res.text()); keepPreview(); return; }
   const data=await res.json(); keepPreview();
 
+  // Decision grande
+  paintDecision(data.decision_level);
+  document.getElementById('k_decision').textContent = 'Decisión: ' + (data.decision_text||'—');
+
+  // KPIs
+  const gEl=document.getElementById('k_global');
+  gEl.textContent=(data.global_score??'—');
+  gEl.style.color = scoreToColor(data.global_score||0);
   document.getElementById('k_bcs').textContent=(data.bcs??'—');
-  document.getElementById('k_global').textContent=(data.global_score??'—');
   document.getElementById('k_risk').textContent=(data.risk??'—');
   document.getElementById('k_bonus').textContent=(data.posterior_bonus??0).toFixed(2);
-  document.getElementById('k_decision').textContent='Decisión: '+(data.decision_text||'—');
   document.getElementById('notes').textContent=data.notes||'';
 
+  // Reasons
   const rl=document.getElementById('reasons'); rl.innerHTML='';
   (data.reasons||[]).forEach(r=>{const li=document.createElement('li'); li.textContent=r; rl.appendChild(li);});
 
+  // Rubric
   const tb=document.querySelector('#rubric tbody'); tb.innerHTML='';
-  (data.rubric||[]).forEach(r=>{const tr=document.createElement('tr'); tr.innerHTML=`<td>${r.name}</td><td>${Number(r.score).toFixed(2)}</td><td>${r.obs||''}</td>`; tb.appendChild(tr);});
+  (data.rubric||[]).forEach(r=>{
+    const tr=document.createElement('tr');
+    const c=scoreToColor(r.score||0);
+    tr.innerHTML=`<td>${r.name}</td><td style="font-weight:700;color:${c}">${Number(r.score).toFixed(2)}</td><td>${r.obs||''}</td>`;
+    tb.appendChild(tr);
+  });
 
+  // Health
   const hc=document.getElementById('health'); hc.innerHTML='';
   const ul=document.createElement('ul'); ul.className='list';
-  (data.health||[]).forEach(h=>{const li=document.createElement('li'); const ok=h.status==='descartado'; li.innerHTML=`<span class="dot ${ok?'ok':'bad'}"></span>${h.name} = ${ok?'Descartado':'Sospecha'}`; ul.appendChild(li);});
+  (data.health||[]).forEach(h=>{
+    const li=document.createElement('li');
+    const ok=h.status==='descartado';
+    li.innerHTML=`<span class="dot ${ok?'ok':'bad'}"></span>${h.name} = ${ok?'Descartado':'Sospecha'}`;
+    ul.appendChild(li);
+  });
   hc.appendChild(ul);
 
+  // Breed (AI)
   const br=document.getElementById('breed');
-  if(data.breed){ br.textContent=`${data.breed.name||'—'} · conf=${(data.breed.confidence??0).toFixed(2)}${data.breed.explanation?(' — '+data.breed.explanation):''}`; }
-  else { br.textContent='—'; }
+  if(data.breed){
+    br.textContent=`${data.breed.name||'—'} · conf=${(data.breed.confidence??0).toFixed(2)}${data.breed.explanation?(' — '+data.breed.explanation):''}`;
+  } else { br.textContent='—'; }
 }
 </script>
 </body>

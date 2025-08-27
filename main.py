@@ -5,11 +5,9 @@ from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 
-from pipeline_real import (
-    run_rubric_timeboxed, detect_health, run_breed_prompt, format_output
-)
+from pipeline_real import run_rubric_timeboxed, detect_health, run_breed_prompt, format_output
 
-APP_VERSION = "v39n-fullui-modes"
+APP_VERSION = "v39r-fullui-polish-breedAI"
 
 app = FastAPI(title="GanadoBravo API", version=APP_VERSION)
 
@@ -37,10 +35,12 @@ def diag():
         "version": APP_VERSION,
         "env": {
             "ENABLE_AI_RUBRIC": os.getenv("ENABLE_AI_RUBRIC","1"),
-            "ENABLE_BREED": os.getenv("ENABLE_BREED","0"),
+            "ENABLE_BREED": os.getenv("ENABLE_BREED","1"),
             "LLM_PROVIDER": os.getenv("LLM_PROVIDER","openai"),
             "OPENAI_MODEL": os.getenv("OPENAI_MODEL","gpt-4o-mini"),
+            "BREED_MODEL": os.getenv("BREED_MODEL","gpt-4o-mini"),
             "LLM_TIMEOUT_SEC": int(os.getenv("LLM_TIMEOUT_SEC","7")),
+            "BREED_TIMEOUT_SEC": int(os.getenv("BREED_TIMEOUT_SEC","6")),
             "LLM_RETRIES": int(os.getenv("LLM_RETRIES","0")),
             "TIME_BUDGET_SEC": int(os.getenv("TIME_BUDGET_SEC","9")),
             "WATCHDOG_SECONDS": int(os.getenv("WATCHDOG_SECONDS","20")),
@@ -53,17 +53,11 @@ WATCHDOG_SECONDS = int(os.getenv("WATCHDOG_SECONDS","20"))
 
 async def _evaluate_internal(img_bytes: bytes, mode: str):
     t0 = time.time()
-    try:
-        agg = run_rubric_timeboxed(img_bytes, mode)
-        ai_used = agg.get("notes","").startswith("ai_")
-    except Exception as e:
-        LAST_ERROR.update({"when": time.time(), "where": "run_rubric_timeboxed", "msg": str(e)})
-        raise
-
+    agg = run_rubric_timeboxed(img_bytes, mode)
     health = detect_health(img_bytes, agg)
-    breed = run_breed_prompt(img_bytes)
+    breed = run_breed_prompt(img_bytes)  # 100% AI (con fallback)
     out = format_output(agg, health, breed, mode)
-    out["debug"] = {"latency_ms": int((time.time()-t0)*1000), "ai_used": ai_used}
+    out["debug"] = {"latency_ms": int((time.time()-t0)*1000), "ai_used": agg.get("notes","").startswith("ai_")}
     return out
 
 @app.post("/evaluate")
