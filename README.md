@@ -1,19 +1,28 @@
-# GanadoBravo v39h — Clasificación de raza calibrada
+# GanadoBravo v39i — robusto contra timeouts (retries + diag)
 
-- Prompt oculto pide **scores** (indicus/taurus) + **cues** (giba, orejas, dewlap, cuernos, pelaje) + `verdict`.
-- Post-proceso evita "Cebú puro" si los rasgos fuertes **no** están presentes; devuelve **Cruza (… dominante)** cuando corresponde.
-- Mantiene watchdog (10s) y límites anti-502.
+## Novedades
+- Tiempo de espera del modelo **configurable** (`LLM_TIMEOUT_SEC`, default 15s).
+- **Reintentos** con backoff (`LLM_RETRIES`, default 2).
+- Endpoint **/api/diag** para verificar flags y último error.
+- **WATCHDOG_SECONDS** elevado (default 30s) — ajústalo: debe ser > `LLM_TIMEOUT_SEC * (LLM_RETRIES+1) + 5`.
+- Mantiene post-proceso que evita "Cebú puro" sin rasgos fuertes.
 
-## Env
+## Variables de entorno (Railway)
 ```
 ENABLE_BREED=1
-# OpenAI
 OPENAI_API_KEY=sk-...
 OPENAI_MODEL=gpt-4o-mini
-# o Azure
-LLM_PROVIDER=azure
-AZURE_OPENAI_ENDPOINT=...
-AZURE_OPENAI_DEPLOYMENT=...
-AZURE_OPENAI_API_KEY=...
-OPENAI_API_VERSION=2024-02-15-preview
+LLM_TIMEOUT_SEC=15
+LLM_RETRIES=2
+WATCHDOG_SECONDS=35
+MAX_IMAGE_MB=8
+# Opcional: OPENAI_BASE_URL (o usa Azure con LLM_PROVIDER=azure + claves)
+```
+
+## Probar
+- GET `/api/health` → ok
+- GET `/api/diag` → revisa que tus flags están activos
+- POST `/evaluate` con una imagen
+```bash
+curl -F "file=@foto.jpg" -F "mode=levante" https://TU_APP/evaluate
 ```
