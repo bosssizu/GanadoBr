@@ -1,12 +1,9 @@
 
-# ASGI smart loader: tries appmain.app, then main.app; fallback includes basic pages.
+# ASGI smart loader: prefer main_app.app, then appmain.app, then main.app; else fallback.
 from fastapi import FastAPI
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 import os, traceback
-
-app = None
-err = None
 
 def _fallback_app(error_msg: str):
     fa = FastAPI(title="GanadoBravo (ASGI fallback)")
@@ -27,15 +24,21 @@ def _fallback_app(error_msg: str):
         return {"error": error_msg}
     return fa
 
+app = None
+err = ""
 try:
-    # Prefer appmain.app (to avoid clashes con módulos llamados 'main')
-    from appmain import app as fastapi_app
+    from main_app import app as fastapi_app
     app = fastapi_app
-except Exception as e1:
-    err = "appmain import failed: " + "\n" + traceback.format_exc()
+except Exception:
+    err += "main_app import failed:\n" + traceback.format_exc() + "\n---\n"
     try:
-        from main import app as fastapi_app
+        from appmain import app as fastapi_app
         app = fastapi_app
-    except Exception as e2:
-        err = err + "\n---\nmain import failed: " + "\n" + traceback.format_exc()
-        app = _fallback_app(err)
+    except Exception:
+        err += "appmain import failed:\n" + traceback.format_exc() + "\n---\n"
+        try:
+            from main import app as fastapi_app
+            app = fastapi_app
+        except Exception:
+            err += "main import failed:\n" + traceback.format_exc()
+            app = _fallback_app(err)
