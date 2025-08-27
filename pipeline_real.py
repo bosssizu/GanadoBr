@@ -54,10 +54,9 @@ def detect_health(img_bytes:bytes, metrics:Dict[str,Any])->List[Dict[str,Any]]:
         res.append({"name": name, "status": status})
     return res
 
-# ------------------ Raza con prompt oculto (triple-quoted) ------------------
+# ------------------ Raza con prompt oculto calibrado ------------------
 
 def _openai_available()->bool:
-    # Por defecto desactivado salvo ENABLE_BREED=1
     if os.getenv("ENABLE_BREED") != "1":
         return False
     key = os.getenv("OPENAI_API_KEY") or os.getenv("AZURE_OPENAI_API_KEY")
@@ -71,7 +70,7 @@ def _call_openai_chat_image(prompt:str, b64_image:str, timeout:float=8.0)->str:
     headers = {"Content-Type":"application/json","Authorization":f"Bearer {api_key}"}
     body = {
         "model": model,
-        "temperature": 0.2,
+        "temperature": 0.1,
         "messages":[
             {"role":"system","content": prompt},
             {"role":"user","content":[
@@ -95,7 +94,7 @@ def _call_azure_openai_chat_image(prompt:str, b64_image:str, timeout:float=8.0)-
     url = f"{endpoint}/openai/deployments/{deployment}/chat/completions?api-version={api_version}"
     headers = {"Content-Type":"application/json","api-key": api_key}
     body = {
-        "temperature": 0.2,
+        "temperature": 0.1,
         "messages":[
             {"role":"system","content": prompt},
             {"role":"user","content":[
@@ -122,39 +121,80 @@ def _parse_breed_json(text:str)->Dict[str,Any]:
         obj = json.loads(raw)
     return obj
 
+def _normalize_breed_name(name:str)->str:
+    n = (name or "").strip()
+    if n.lower() == "cebu":
+        return "Cebú"
+    return n[:80] or "Cruza"
+
 def run_breed_prompt(img_bytes:bytes)->Dict[str,Any]:
     if not _openai_available():
         return {"name":"Cruza (indicus/taurus posible)","confidence":0.55,"explanation":"Breed OFF (ENABLE_BREED!=1)"}
     b64 = base64.b64encode(img_bytes).decode("utf-8")
     provider = (os.getenv("LLM_PROVIDER") or "openai").lower()
-    system_prompt = """Eres un experto en razas bovinas. Identifica RAZA o ENRAZAMIENTO (cruza)
-a partir de rasgos fenotípicos visibles (orejas, papada, giba/hump, línea dorsal, color/pelos, cara, cuernos, grupa).
-Si detectas rasgos de Bos indicus (Brahman/Nelore/etc.), menciónalo.
-Responde SOLO en JSON con este esquema:
+    system_prompt = """Eres experto en razas bovinas. Estima si el animal es PURO o CRUZA (enrazamiento).
+Al evaluar, considera: giba (tamaño y forma), orejas (tamaño/pendulosidad), papada/dewlap, perfil/cabeza, cuernos, línea dorsal, piel suelta, patrón de pelaje.
+Sé conservador: solo marca "puro" si hay rasgos contundentes y consistentes; si hay mezcla de rasgos, marca "cruza".
+
+Responde SOLAMENTE en JSON con este esquema (sin comentarios ni texto adicional):
 {
-  "breed": "<raza principal o 'cruza'>",
-  "is_cross": true|false,
-  "dominant": "<raza dominante si es cruza o null>",
-  "confidence": 0..1,
-  "explanation": "cues breves usados para decidir"
-}
-No agregues texto fuera del JSON. No inventes si la evidencia es insuficiente (usa confianza baja)."""
+  "verdict": "puro" | "cruza",
+  "breed_main": "<si puro: la raza principal (p.ej., Brahman, Nelore, Angus, Holstein, Cebú genérico); si cruza: la raza dominante o 'mixta'>",
+  "indicus_score": 0.0-1.0,
+  "taurus_score": 0.0-1.0,
+  "hump": "none|low|medium|high",
+  "ears": "small|medium|large_pendulous",
+  "dewlap": "none|low|medium|high",
+  "horns": "absent|small|medium|large|lyre",
+  "coat": "solid|spotted|brindle|other",
+  "confidence_raw": 0.0-1.0,
+  "explanation": "cues breves (máx 140 caracteres)"
+}"""
     try:
         if provider == "azure":
             text = _call_azure_openai_chat_image(system_prompt, b64, timeout=8.0)
         else:
             text = _call_openai_chat_image(system_prompt, b64, timeout=8.0)
         obj = _parse_breed_json(text)
-        breed = str(obj.get("breed","")).strip() or "cruza"
-        is_cross = bool(obj.get("is_cross", False))
-        dominant = (obj.get("dominant") or "") if is_cross else ""
-        conf = float(obj.get("confidence", 0.6))
-        conf = max(0.0, min(1.0, conf))
-        expl = obj.get("explanation") or "Sin explicación"
-        name = breed
-        if is_cross and dominant: name = f"Cruza ({dominant} dominante)"
-        elif is_cross: name = "Cruza (mixta)"
-        return {"name": name, "confidence": conf, "explanation": expl}
+
+        # ------ Post-proceso y calibración ------
+        indicus = float(obj.get("indicus_score", 0.5))
+        taurus  = float(obj.get("taurus_score", 0.5))
+        hump = (obj.get("hump") or "none").lower()
+        ears = (obj.get("ears") or "medium").lower()
+        dewlap = (obj.get("dewlap") or "low").lower()
+        verdict = (obj.get("verdict") or "").lower()
+        breed_main = _normalize_breed_name(obj.get("breed_main",""))
+        conf = float(obj.get("confidence_raw", 0.6))
+
+        # Si reporta "puro" pero carece de rasgos fuertes de indicus para Cebú/Brahman, penaliza
+        strong_indicus = (hump in {"medium","high"}) or (ears == "large_pendulous") or (dewlap in {"medium","high"})
+        if verdict == "puro" and indicus >= 0.6 and not strong_indicus:
+            conf -= 0.25  # castiga sobreconfianza
+            verdict = "cruza"  # fuerza cruza si señales débiles
+
+        # Si ambos scores son cercanos, trátalo como cruza
+        if abs(indicus - taurus) <= 0.2:
+            verdict = "cruza"
+
+        conf = max(0.3, min(0.95, conf))
+
+        if verdict == "cruza":
+            # Intenta construir etiqueta "Cruza (X dominante)" si procede
+            dom = None
+            if indicus > taurus + 0.15:
+                # si breed_main es una indicus conocida, úsala como dominante
+                if any(k in breed_main.lower() for k in ["brahman","nelore","gyr","cebú","cebu","indicus"]):
+                    dom = _normalize_breed_name(breed_main)
+                else:
+                    dom = "indicus"
+            elif taurus > indicus + 0.15:
+                dom = "taurus"
+            name = f"Cruza ({dom} dominante)" if dom else "Cruza (mixta)"
+        else:
+            name = _normalize_breed_name(breed_main or "Cebú")
+
+        return {"name": name, "confidence": round(conf,2), "explanation": obj.get("explanation","")}
     except Exception as e:
         return {"name":"Cruza (indicus/taurus posible)","confidence":0.55,"explanation":f"Fallback por error: {e}"}
 
@@ -185,7 +225,7 @@ def format_output(agg:Dict[str,Any], health:List[Dict[str,Any]], breed:Dict[str,
         "risk": risk,
         "posterior_bonus": agg.get("posterior_bonus",0),
         "global_conf": 0.9,
-        "notes": "Evaluación pipeline real (v39g, triple-quoted prompt).",
+        "notes": "Evaluación pipeline real (v39h, breed calibrado).",
         "qc": {**agg.get("qc",{}), "auction_mode": (mode=='subasta')},
         "rubric": agg["rubric"],
         "reasons": reasons,

@@ -1,4 +1,4 @@
-import os, asyncio, sys, time
+import os, asyncio, time
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -6,7 +6,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from pipeline_real import run_metrics_pass, aggregate_metrics, detect_health, run_breed_prompt, format_output
 
-APP_VERSION = "v39g"
+APP_VERSION = "v39h"
 
 app = FastAPI(title="GanadoBravo API", version=APP_VERSION)
 
@@ -30,7 +30,7 @@ def health():
     return {"ok": True, "version": APP_VERSION}
 
 MAX_IMAGE_MB = int(os.getenv("MAX_IMAGE_MB","8"))
-WATCHDOG_SECONDS = int(os.getenv("WATCHDOG_SECONDS","8"))
+WATCHDOG_SECONDS = int(os.getenv("WATCHDOG_SECONDS","10"))
 
 async def _evaluate_internal(img_bytes: bytes, mode: str):
     t0 = time.time()
