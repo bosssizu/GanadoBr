@@ -9,7 +9,7 @@ from pipeline_real import (
     run_breed_prompt, run_condition_prompt, apply_condition_gating, format_output
 )
 
-APP_VERSION = "v39j"
+APP_VERSION = "v39k"
 
 app = FastAPI(title="GanadoBravo API", version=APP_VERSION)
 
@@ -41,16 +41,13 @@ async def _evaluate_internal(img_bytes: bytes, mode: str):
     m2 = run_metrics_pass(img_bytes, mode, pass_id=2)
     agg = aggregate_metrics(m1, m2)
 
-    # Hidden prompt for condition (BCS) with robust fallback
     cond = run_condition_prompt(img_bytes)
-
-    # Apply condition gating on rubric, bcs, risk, bonus, decision caps
     agg_adj = apply_condition_gating(agg, cond)
 
     health = detect_health(img_bytes, agg_adj)
     breed = run_breed_prompt(img_bytes)
     out = format_output(agg_adj, health, breed, mode, cond)
-    out["debug"] = {"latency_ms": int((time.time()-t0)*1000)}
+    out["debug"] = {"latency_ms": int((time.time()-t0)*1000), "weights": agg_adj.get("weights",{})}
     return out
 
 @app.post("/evaluate")
