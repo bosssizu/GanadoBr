@@ -1,28 +1,17 @@
-# GanadoBravo v39i — robusto contra timeouts (retries + diag)
+# GanadoBravo v39j — Condition Gated
 
-## Novedades
-- Tiempo de espera del modelo **configurable** (`LLM_TIMEOUT_SEC`, default 15s).
-- **Reintentos** con backoff (`LLM_RETRIES`, default 2).
-- Endpoint **/api/diag** para verificar flags y último error.
-- **WATCHDOG_SECONDS** elevado (default 30s) — ajústalo: debe ser > `LLM_TIMEOUT_SEC * (LLM_RETRIES+1) + 5`.
-- Mantiene post-proceso que evita "Cebú puro" sin rasgos fuertes.
+## Qué hace
+- **Prompt oculto de condición corporal (BCS)** que devuelve BCS (1–5) + señales (dorsal, posterior, pecho) + `risk_hint`.
+- **Gating**: si BCS < 2.6, baja automáticamente **línea dorsal**, **grupo posterior**, **pecho/ancho** y **sube el riesgo**; además **elimina el bono posterior** si BCS < 3.4.
+- **Decisión** limitada por BCS: si BCS < 2.4 → como máximo *Considerar (bajo)*; si BCS < 2.0 o riesgo ≥ 0.6 → *No comprar*.
+- **Fallback heurístico** (Pillow + edges) cuando el modelo no está disponible.
 
-## Variables de entorno (Railway)
-```
-ENABLE_BREED=1
-OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-4o-mini
-LLM_TIMEOUT_SEC=15
-LLM_RETRIES=2
-WATCHDOG_SECONDS=35
-MAX_IMAGE_MB=8
-# Opcional: OPENAI_BASE_URL (o usa Azure con LLM_PROVIDER=azure + claves)
-```
+## Variables
+- `ENABLE_CONDITION=1` (default) — activa el prompt de condición.
+- `ENABLE_BREED=1` (opcional) — activa el prompt de raza (si tienes API key).
+- `OPENAI_API_KEY` + `OPENAI_MODEL` (o Azure con `LLM_PROVIDER=azure` y sus claves).
+- Timeouts/retries heredados de versiones previas: `LLM_TIMEOUT_SEC`, `LLM_RETRIES`, `WATCHDOG_SECONDS`.
 
-## Probar
-- GET `/api/health` → ok
-- GET `/api/diag` → revisa que tus flags están activos
-- POST `/evaluate` con una imagen
-```bash
-curl -F "file=@foto.jpg" -F "mode=levante" https://TU_APP/evaluate
-```
+## Notas
+- Mantiene **todas las métricas morfológicas** visibles.
+- **Salud** sigue mostrando cada ítem y “No se detectaron problemas…” cuando corresponde.
