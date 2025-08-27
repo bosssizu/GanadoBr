@@ -5,11 +5,9 @@ from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 
-from pipeline_real import (
-    run_rubric_timeboxed, detect_health, run_breed_prompt, format_output
-)
+from pipeline_real import run_rubric_timeboxed, detect_health, run_breed_prompt, format_output
 
-APP_VERSION = "v39n-fullui-modes"
+APP_VERSION = "v39p-fullui-modes-qcfix"
 
 app = FastAPI(title="GanadoBravo API", version=APP_VERSION)
 
