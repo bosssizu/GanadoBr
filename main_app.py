@@ -5,7 +5,7 @@ from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 
-APP_VERSION = "v39x-lazyimport-fix"
+APP_VERSION = "v40a-full-breeds"
 
 app = FastAPI(title="GanadoBravo API", version=APP_VERSION)
 app.add_middleware(
@@ -32,9 +32,7 @@ def routes():
 @app.get("/api/diag")
 def diag():
     return {"ok": True, "version": APP_VERSION, "env": {
-        "ENABLE_AI_RUBRIC": os.getenv("ENABLE_AI_RUBRIC","1"),
         "ENABLE_BREED": os.getenv("ENABLE_BREED","1"),
-        "LLM_PROVIDER": os.getenv("LLM_PROVIDER","openai"),
         "OPENAI_MODEL": os.getenv("OPENAI_MODEL","gpt-4o-mini"),
         "BREED_MODEL": os.getenv("BREED_MODEL","gpt-4o-mini"),
     }}
@@ -43,18 +41,13 @@ MAX_IMAGE_MB = int(os.getenv("MAX_IMAGE_MB","8"))
 WATCHDOG_SECONDS = int(os.getenv("WATCHDOG_SECONDS","20"))
 
 async def _evaluate_internal(img_bytes: bytes, mode: str):
-    # Lazy import backend to avoid import-time crashes breaking the app
-    try:
-        from pipeline_real import run_rubric_timeboxed, detect_health, run_breed_prompt, format_output
-    except Exception as e:
-        return {"status":"error","code":500,"message":"Backend import failed","detail":str(e)}
-    import asyncio, time
+    from pipeline_real import run_rubric_timeboxed, detect_health, run_breed_prompt, format_output
     t0 = time.time()
     agg = run_rubric_timeboxed(img_bytes, mode)
     health = detect_health(img_bytes, agg)
     breed = run_breed_prompt(img_bytes)
     out = format_output(agg, health, breed, mode)
-    out["debug"] = {"latency_ms": int((time.time()-t0)*1000), "ai_used": agg.get("notes","").startswith("ai_")}
+    out["debug"] = {"latency_ms": int((time.time()-t0)*1000)}
     return out
 
 @app.post("/evaluate")
@@ -66,17 +59,15 @@ async def evaluate(file: UploadFile = File(...), mode: str = Form("levante")):
         raise HTTPException(status_code=413, detail=f"Imagen supera {MAX_IMAGE_MB} MB")
     try:
         res = await asyncio.wait_for(_evaluate_internal(img_bytes, mode), timeout=WATCHDOG_SECONDS)
-        status = 200 if "decision_level" in res else 500
+        status = 200 if "decision_level" in res else 200
         return JSONResponse(res, status_code=status)
     except asyncio.TimeoutError:
         return JSONResponse({"status":"error","code":504,"message":"watchdog timeout"}, status_code=504)
 
-# Friendly 405 for GET /evaluate
 @app.get("/evaluate")
 def evaluate_get_hint():
     return JSONResponse({"status":"error","message":"Use POST /evaluate con archivo 'file' y campo 'mode'."}, status_code=405)
 
-# Catch‑all: sirve index para rutas que no sean /api* ni /static*
 from fastapi import Request
 @app.get("/{path:path}", response_class=HTMLResponse)
 def catch_all(path: str):

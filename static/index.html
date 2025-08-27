@@ -1,181 +1,97 @@
-<!doctype html>
-<html lang="es">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
+
+<!doctype html><html lang="es"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>GanadoBravo — Evaluación</title>
 <style>
-:root{--bg:#f5f7fb;--fg:#0f172a;--muted:#6b7280;--card:#fff;--ok:#16a34a;--bad:#ef4444;--warn:#f59e0b;}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial}
-.container{max-width:1120px;margin:24px auto;padding:0 16px}
-.grid{display:grid;grid-template-columns:280px 1fr;gap:16px}
-.card{background:var(--card);border-radius:14px;box-shadow:0 2px 18px rgba(0,0,0,.06);padding:16px}
-.h{margin:0 0 8px 0;font-size:18px}
-.small{color:var(--muted);font-size:13px}
-.btn{background:#111827;color:#fff;border:0;border-radius:10px;padding:10px 14px;cursor:pointer}
-.input{width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:10px}
-.kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-.kpi .tile{background:#fff;border:1px solid #eef2f7;border-radius:12px;padding:12px}
-.kpi .title{font-size:12px;color:#64748b}
-.kpi .value{font-size:20px;margin-top:6px;font-weight:700}
-.table{width:100%;border-collapse:collapse}
-.table th,.table td{padding:10px;border-bottom:1px solid #eef2f7;text-align:left;font-size:14px;vertical-align:top}
-.dot{width:10px;height:10px;border-radius:999px;display:inline-block;margin-right:6px}
-.dot.ok{background:var(--ok)}.dot.bad{background:var(--bad)}
-.list{margin:0;padding-left:18px}
-.preview{height:220px;background:#f1f5f9;border:1px dashed #e5e7eb;border-radius:12px;display:flex;align-items:center;justify-content:center}
-.preview img{max-height:100%;max-width:100%;object-fit:contain;border-radius:10px}
-.footer{color:#9ca3af;font-size:12px;margin-top:10px}
-/* Decision más grande y resaltada */
-.decision{font-size:28px;font-weight:800;margin-top:8px}
-.decision.bad{color:var(--bad)} .decision.mid{color:var(--warn)} .decision.good{color:var(--ok)}
-</style>
-</head>
-<body>
-<div class="container">
-  <h1 style="margin-bottom:12px;">GanadoBravo — Evaluación</h1>
-  <div class="grid">
-    <div class="card">
-      <h3 class="h">Entrada</h3>
-      <div style="margin-bottom:10px">
-        <input id="file" type="file" accept="image/*" class="input"/>
-      </div>
-      <div style="margin-bottom:10px">
-        <label class="small">Modo</label>
-        <select id="mode" class="input">
-          <option value="levante">Levante (default)</option>
-          <option value="vaca_flaca">Vaca flaca</option>
-          <option value="engorde">Engorde</option>
-        </select>
-      </div>
-      <div class="row" style="display:flex;justify-content:space-between;align-items:center">
-        <button class="btn" id="evalBtn">Evaluar</button>
-      </div>
-      <div style="height:12px"></div>
-      <div class="small">Vista previa</div>
-      <div class="preview"><img id="previewImg" alt="vista previa"/></div>
-      <div style="height:12px"></div>
-      <div class="small">Notas y razones</div>
-      <ul class="list" id="reasons"></ul>
-      <div class="footer">Diag: <a href="/api/diag" target="_blank">/api/diag</a></div>
-    </div>
-
-    <div class="card">
-      <h3 class="h">Resultado</h3>
-
-      <div class="decision" id="k_decision">—</div>
-
-      <div class="kpi" style="margin-top:12px">
-        <div class="tile"><div class="title">BCS</div><div class="value" id="k_bcs">—</div></div>
-        <div class="tile"><div class="title">Puntaje global</div><div class="value" id="k_global">—</div></div>
-        <div class="tile"><div class="title">Riesgo</div><div class="value" id="k_risk">—</div></div>
-        <div class="tile"><div class="title">Bono posterior</div><div class="value" id="k_bonus">—</div></div>
-      </div>
-
-      <div style="height:14px"></div>
-      <h3 class="h">Rúbrica detallada</h3>
-      <table class="table" id="rubric">
-        <thead><tr><th>Métrica</th><th>Puntaje</th><th>Observaciones</th></tr></thead>
-        <tbody></tbody>
-      </table>
-
-      <div style="height:14px"></div>
-      <h3 class="h">Salud</h3>
-      <div id="health"></div>
-
-      <div style="height:14px"></div>
-      <h3 class="h">Raza</h3>
-      <div id="breed" class="small"></div>
-
-      <div style="height:14px"></div>
-      <div class="small" id="notes"></div>
-    </div>
-  </div>
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f7f7fb;margin:0}
+.container{max-width:1120px;margin:24px auto;padding:0 16px;display:grid;grid-template-columns:320px 1fr;gap:24px}
+.card{background:#fff;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.06);padding:16px}
+h1{margin:0 0 8px} .btn{background:#0b63f6;color:#fff;border:none;border-radius:10px;padding:10px 14px;cursor:pointer}
+h2{margin-top:0} .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.badge{display:inline-block;background:#eef2ff;color:#334; padding:6px 10px;border-radius:10px;font-weight:600}
+.score{font-weight:700} .ok{color:#1a7f37} .warn{color:#b7791f} .bad{color:#9b1c1c}
+.small{color:#666;font-size:12px}
+.table{width:100%;border-collapse:collapse;font-size:14px} .table td{padding:8px;border-bottom:1px solid #eee}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px}
+.dot.ok{background:#16a34a} .dot.bad{background:#dc2626}
+.preview{width:100%;height:220px;background:#f1f1f6;border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.preview img{max-width:100%;max-height:100%;}
+.decision{font-size:28px;font-weight:900}
+</style></head>
+<body><div class="container">
+<div class="card">
+  <h2>Entrada</h2>
+  <div>Imagen (JPG/PNG)</div>
+  <input id="file" type="file" accept="image/*"/><br/><br/>
+  <div>Modo</div>
+  <select id="mode">
+    <option value="levante">Levante (default)</option>
+    <option value="vaca_flaca">Vaca flaca</option>
+    <option value="engorde">Engorde</option>
+  </select><br/><br/>
+  <button class="btn" id="eval">Evaluar</button>
+  <br/><br/>
+  <div class="preview" id="preview"><span class="small">vista previa</span></div>
+  <br/>
+  <div class="small">Notas y razones</div>
+  <ul class="small" id="reasons"></ul>
 </div>
 
+<div class="card">
+  <h2>Resultado</h2>
+  <div class="grid">
+    <div>
+      <div id="decision" class="decision">—</div>
+      <div>BCS <span id="bcs">—</span></div>
+    </div>
+    <div class="grid">
+      <div class="badge">Puntaje global: <span id="gscore">—</span></div>
+      <div class="badge">Riesgo: <span id="risk">—</span></div>
+    </div>
+  </div>
+  <hr/>
+  <h3>Rúbrica detallada</h3>
+  <table class="table" id="rub"></table>
+  <h3>Salud</h3>
+  <ul id="health"></ul>
+  <h3>Raza</h3>
+  <div id="breed" class="small">—</div>
+</div>
+</div>
 <script>
-// Stable preview using DataURL
-let previewData=null;
-const fileEl=document.getElementById('file');
-const previewImg=document.getElementById('previewImg');
-fileEl.addEventListener('change',()=>{
-  const f=fileEl.files[0]; if(!f) return;
-  const r=new FileReader();
-  r.onload=e=>{previewData=e.target.result; previewImg.src=previewData;};
-  r.readAsDataURL(f);
+const f=$=>document.getElementById($);
+f('file').addEventListener('change',e=>{
+  const file=e.target.files[0]; if(!file)return;
+  const img=document.createElement('img'); img.src=URL.createObjectURL(file);
+  const pv=f('preview'); pv.innerHTML=''; pv.appendChild(img);
 });
-previewImg.addEventListener('error',()=>{ if(previewData) setTimeout(()=>previewImg.src=previewData,60); });
-document.addEventListener('visibilitychange',()=>{ if(!document.hidden && previewData) previewImg.src=previewData; });
-
-document.getElementById('evalBtn').addEventListener('click', evaluate);
-function keepPreview(){ if(previewImg && previewData) previewImg.src=previewData; }
-
-function scoreToColor(score){
-  // score 0..10 -> hue 0..140 (rojo -> verde)
-  const s = Math.max(0, Math.min(10, Number(score)||0));
-  const hue = 0 + (140 * (s/10));
-  return `hsl(${hue}, 70%, 40%)`;
-}
-function paintDecision(level){
-  const el=document.getElementById('k_decision');
-  el.classList.remove('bad','mid','good');
-  if(level==='NO_COMPRAR'){ el.classList.add('bad'); }
-  else if(level==='CONSIDERAR_BAJO'){ el.classList.add('mid'); }
-  else if(level==='CONSIDERAR_ALTO' || level==='COMPRAR'){ el.classList.add('good'); }
-}
-
-async function evaluate(){
-  const f=fileEl.files[0]; if(!f){ alert("Sube una imagen"); return; }
-  const mode=document.getElementById('mode').value;
-  const fd=new FormData(); fd.append('file',f); fd.append('mode',mode);
+function color(v){ if(v>=7.2) return 'ok'; if(v>=6) return 'warn'; return 'bad'; }
+f('eval').onclick=async ()=>{
+  const file=f('file').files[0]; if(!file){alert('Carga una imagen'); return;}
+  const fd=new FormData(); fd.append('file',file); fd.append('mode',f('mode').value);
   const res=await fetch('/evaluate',{method:'POST',body:fd});
-  keepPreview();
-  if(!res.ok){ alert('Error: '+res.status+' '+await res.text()); keepPreview(); return; }
-  const data=await res.json(); keepPreview();
-
-  // Decision grande
-  paintDecision(data.decision_level);
-  document.getElementById('k_decision').textContent = 'Decisión: ' + (data.decision_text||'—');
-
-  // KPIs
-  const gEl=document.getElementById('k_global');
-  gEl.textContent=(data.global_score??'—');
-  gEl.style.color = scoreToColor(data.global_score||0);
-  document.getElementById('k_bcs').textContent=(data.bcs??'—');
-  document.getElementById('k_risk').textContent=(data.risk??'—');
-  document.getElementById('k_bonus').textContent=(data.posterior_bonus??0).toFixed(2);
-  document.getElementById('notes').textContent=data.notes||'';
-
-  // Reasons
-  const rl=document.getElementById('reasons'); rl.innerHTML='';
-  (data.reasons||[]).forEach(r=>{const li=document.createElement('li'); li.textContent=r; rl.appendChild(li);});
-
-  // Rubric
-  const tb=document.querySelector('#rubric tbody'); tb.innerHTML='';
+  const data=await res.json();
+  if(!res.ok && data.status==='error'){ alert('Error: '+JSON.stringify(data)); return;}
+  f('decision').textContent='Decisión: '+(data.decision_text||'—');
+  f('bcs').textContent=data.bcs?.toFixed?data.bcs.toFixed(2):data.bcs;
+  f('gscore').textContent=data.global_score?.toFixed?data.global_score.toFixed(2):data.global_score;
+  f('risk').textContent=data.risk;
+  const rub=f('rub'); rub.innerHTML='';
   (data.rubric||[]).forEach(r=>{
     const tr=document.createElement('tr');
-    const c=scoreToColor(r.score||0);
-    tr.innerHTML=`<td>${r.name}</td><td style="font-weight:700;color:${c}">${Number(r.score).toFixed(2)}</td><td>${r.obs||''}</td>`;
-    tb.appendChild(tr);
+    tr.innerHTML=`<td>${r.name}</td><td class="score ${color(r.score)}">${r.score.toFixed(2)}</td><td>${r.obs||'Correcta'}</td>`;
+    rub.appendChild(tr);
   });
-
-  // Health
-  const hc=document.getElementById('health'); hc.innerHTML='';
-  const ul=document.createElement('ul'); ul.className='list';
-  (data.health||[]).forEach(h=>{
-    const li=document.createElement('li');
-    const ok=h.status==='descartado';
-    li.innerHTML=`<span class="dot ${ok?'ok':'bad'}"></span>${h.name} = ${ok?'Descartado':'Sospecha'}`;
-    ul.appendChild(li);
+  const hl=f('health'); hl.innerHTML=''; (data.health||[]).forEach(h=>{
+    const li=document.createElement('li'); li.innerHTML=`<span class="dot ok"></span>${h.name} = ${h.status==='descartado'?'Descartado':'Revisar'}`; hl.appendChild(li);
   });
-  hc.appendChild(ul);
-
-  // Breed (AI)
-  const br=document.getElementById('breed');
+  const br=f('breed');
   if(data.breed){
-    br.textContent=`${data.breed.name||'—'} · conf=${(data.breed.confidence??0).toFixed(2)}${data.breed.explanation?(' — '+data.breed.explanation):''}`;
+    const fam = data.breed.family? ` · ${data.breed.family}`: '';
+    const dom = data.breed.dominant && data.breed.dominant!=='ninguno'? ` · predomina ${data.breed.dominant}`: '';
+    br.textContent=`${data.breed.name||'—'} · conf=${(data.breed.confidence??0).toFixed(2)}${fam}${dom}${data.breed.explanation?(' — '+data.breed.explanation):''}`;
   } else { br.textContent='—'; }
-}
+  const rs=f('reasons'); rs.innerHTML=''; (data.reasons||[]).forEach(x=>{const li=document.createElement('li'); li.textContent=x; rs.appendChild(li);});
+};
 </script>
-</body>
-</html>
+</body></html>
