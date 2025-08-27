@@ -16,7 +16,12 @@
     .pill-amber{ background:#fff4e5; color:#8a5300; }
     .pill-red{ background:#feeaea; color:#9b1c1c; }
     .sticky-cta{ position:sticky; bottom:0; background:linear-gradient(180deg, rgba(246,248,251,.0), rgba(246,248,251,1) 30%); padding-top:.5rem; }
-  </style>
+  .engine-badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:999px;margin-left:8px}
+.engine-ai{background:#dcfce7;color:#065f46}
+.engine-fallback{background:#fee2e2;color:#7f1d1d}
+.rubric-table td,.rubric-table th{padding:6px 8px;border-bottom:1px solid #eee}
+.rubric-score{font-weight:600}
+</style>
 </head>
 <body class="min-h-screen">
   <header class="bg-white/90 backdrop-blur border-b border-gray-200 sticky top-0 z-50">
@@ -79,7 +84,7 @@
 
       <div class="card p-4 md:p-5">
         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-          <h2 class="text-xl font-semibold text-gray-900">Resultado</h2>
+          <h2 class="text-xl font-semibold text-gray-900">Resultado</h2><span id="engine_badge" class="engine-badge engine-fallback" style="display:none"></span>
           <div class="text-sm text-gray-600">Presentación optimizada para móviles</div>
         </div>
         <div class="mb-3" id="decisionStrip"></div>
@@ -88,7 +93,11 @@
 
       <div id="rubricCard" class="card p-3 md:p-5">
         <div class="flex items-center justify-between gap-2">
-          <h3 class="font-semibold text-gray-900">Rúbrica detallada</h3>
+          <h3 class="font-semibold text-gray-900">Rúbrica detallada
+<table class="rubric-table" style="width:100%;margin-top:8px">
+  <thead><tr><th style="text-align:left">Métrica</th><th style="text-align:right">Puntaje</th><th style="text-align:left">Observaciones</th></tr></thead>
+  <tbody id="rubric_tbody"></tbody>
+</table></h3>
           <span class="text-xs text-gray-500">Se actualiza con cada evaluación</span>
         </div>
         <div class="overflow-x-auto mt-3">
@@ -106,7 +115,7 @@
       </div>
 
       <div class="card p-4 md:p-5">
-        <h3 class="font-semibold text-gray-900">Salud</h3>
+        <h3 class="font-semibold text-gray-900">Salud<ul id="health_list" style="margin-top:6px"></ul></h3>
         <div id="healthBox" class="mt-2 text-sm text-gray-800"></div>
       </div>
 
@@ -319,5 +328,65 @@
     }
   });
   </script>
+
+<script>
+(function(){
+  const fmtScoreColor = (v)=>{
+    if (v===null || v===undefined || isNaN(v)) return '';
+    const n = Number(v);
+    if (n >= 7.5) return 'color:#16a34a';    // verde
+    if (n >= 6.5) return 'color:#65a30d';    // lima
+    if (n >= 5.5) return 'color:#d97706';    // ámbar
+    return 'color:#dc2626';                  // rojo
+  };
+
+  window.__gb_after_fetch = function(data,res){
+    try{
+      // Engine badge
+      const b = document.getElementById('engine_badge');
+      if (b){
+        const eng = (data.engine || (data.breed_status==='active'?'ai':'fallback'));
+        b.style.display='inline-block';
+        b.className = 'engine-badge ' + (eng==='ai'?'engine-ai':'engine-fallback');
+        b.textContent = (eng==='ai'?'IA activa':'Motor local (fallback)');
+        b.title = (eng==='ai'?'Evaluación completa por modelo de IA.':'Evaluación local por reglas. Activa OPENAI_API_KEY para IA.');
+      }
+
+      // Rubric (10 métricas)
+      const tb = document.getElementById('rubric_tbody');
+      if (tb){
+        tb.innerHTML = '';
+        const rub = Array.isArray(data.rubric)? data.rubric : [];
+        rub.forEach(row=>{
+          const tr = document.createElement('tr');
+          const td1 = document.createElement('td'); td1.textContent = row.name || '';
+          const td2 = document.createElement('td'); td2.style.textAlign='right'; td2.className='rubric-score'; 
+          td2.textContent = (row.score!=null? Number(row.score).toFixed(2) : '—');
+          td2.style = fmtScoreColor(row.score);
+          const td3 = document.createElement('td'); td3.textContent = row.obs || '';
+          tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3);
+          tb.appendChild(tr);
+        });
+      }
+
+      // Health list (todas las enfermedades)
+      const hl = document.getElementById('health_list');
+      if (hl){
+        hl.innerHTML='';
+        const H = Array.isArray(data.health)? data.health : [];
+        H.forEach(h=>{
+          const li = document.createElement('li');
+          const status = (h.status||'').toLowerCase();
+          const ok = status.includes('descart');
+          li.textContent = `${h.name} = ${ok?'Descartado':'Sospecha'}`;
+          li.style.color = ok ? '#16a34a' : '#dc2626';
+          hl.appendChild(li);
+        });
+      }
+    }catch(e){ console.error('render error', e); }
+  };
+})();
+</script>
+
 </body>
 </html>
