@@ -26,8 +26,6 @@
 .preview{height:220px;background:#f1f5f9;border:1px dashed #e5e7eb;border-radius:12px;display:flex;align-items:center;justify-content:center}
 .preview img{max-height:100%;max-width:100%;object-fit:contain;border-radius:10px}
 .footer{color:#9ca3af;font-size:12px;margin-top:10px}
-/* Intenta ocultar cualquier fila genérica de 'Calidad de entrada' en UIs antiguas */
-.badge, .quality, .qc, .qc-row, #quality, #quality-row { display: none !important; }
 </style>
 </head>
 <body>
@@ -49,7 +47,6 @@
       </div>
       <div class="row" style="display:flex;justify-content:space-between;align-items:center">
         <button class="btn" id="evalBtn">Evaluar</button>
-        <span id="modehint" class="small">modo=levante</span>
       </div>
       <div style="height:12px"></div>
       <div class="small">Vista previa</div>
@@ -62,8 +59,6 @@
 
     <div class="card">
       <h3 class="h">Resultado</h3>
-      <!-- Quality row NO se renderiza aquí, pero por si el bundle previo la inyecta, la escondemos vía JS -->
-      <div id="quality-row" style="display:none"></div>
 
       <div class="kpi" style="margin-top:12px">
         <div class="tile"><div class="title">BCS</div><div class="value" id="k_bcs">—</div></div>
@@ -97,103 +92,73 @@
 </div>
 
 <script>
-// --------- Hide "Calidad de entrada" row no matter where it comes from ---------
-function hideQualityBlocks(){
-  const terms=['Calidad de entrada','Estabilidad','Rúbrica','Porción visible'];
-  const all = document.querySelectorAll('div,section,header,span,p');
-  for(const el of all){
-    const t=(el.textContent||'').trim();
-    if(!t) continue;
-    if(terms.some(k=>t.includes(k))){
-      const box = el.closest('.card') || el.closest('div');
-      if(box && box.parentElement){
-        // Si es una fila completa arriba de "Resultado", ocúltala
-        if(t.includes('Calidad de entrada') || t.includes('Porción visible')){
-          (box === document.body ? el : box).style.display='none';
-        } else {
-          el.style.display='none';
-        }
-      } else {
-        el.style.display='none';
+// --- Delete any 'Calidad de entrada' cards injected by old bundles ---
+(function nukeQC(){
+  function kill(){
+    const texts=['Calidad de entrada','Estabilidad','Rúbrica:','Porción visible'];
+    const cards=[...document.querySelectorAll('.card,div,section')];
+    for(const card of cards){
+      const t=(card.textContent||'').trim();
+      if(!t) continue;
+      if(texts.some(x=>t.includes(x))){
+        // borra contenedor completo, no solo el span
+        const box = card.closest('.card') || card;
+        box.remove();
       }
     }
   }
-}
-hideQualityBlocks();
-new MutationObserver(hideQualityBlocks).observe(document.body,{childList:true,subtree:true});
+  kill();
+  // si se vuelve a inyectar por React, eliminar otra vez
+  new MutationObserver(kill).observe(document.body,{childList:true,subtree:true});
+})();
 
-// --------- Stable preview using DataURL + retry on error ---------
-let previewData = null;
-const fileEl = document.getElementById('file');
-const previewImg = document.getElementById('previewImg');
-fileEl.addEventListener('change', () => {
-  const f = fileEl.files[0];
-  if (!f) return;
-  const reader = new FileReader();
-  reader.onload = (e) => { previewData = e.target.result; previewImg.src = previewData; };
-  reader.readAsDataURL(f);
+// --- Stable preview using DataURL + retry onerror ---
+let previewData=null;
+const fileEl=document.getElementById('file');
+const previewImg=document.getElementById('previewImg');
+fileEl.addEventListener('change',()=>{
+  const f=fileEl.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=e=>{previewData=e.target.result; previewImg.src=previewData;};
+  r.readAsDataURL(f);
 });
-previewImg.addEventListener('error', () => { if(previewData) setTimeout(()=>{ previewImg.src = previewData; }, 60); });
-document.addEventListener('visibilitychange', () => { if(!document.hidden && previewData) previewImg.src = previewData; });
+previewImg.addEventListener('error',()=>{ if(previewData) setTimeout(()=>previewImg.src=previewData,60); });
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden && previewData) previewImg.src=previewData; });
 
-// --------- Evaluate ---------
+// --- Evaluate ---
 document.getElementById('evalBtn').addEventListener('click', evaluate);
-function keepPreview(){ if(previewImg && previewData) previewImg.src = previewData; }
+function keepPreview(){ if(previewImg && previewData) previewImg.src=previewData; }
 
 async function evaluate(){
-  const f = fileEl.files[0];
-  if(!f){ alert("Sube una imagen"); return; }
-  const mode = document.getElementById('mode').value;
-  document.getElementById('modehint')?.remove?.(); // ya no mostramos el hint
-  const fd = new FormData();
-  fd.append('file', f);
-  fd.append('mode', mode);
-  const res = await fetch('/evaluate', { method:'POST', body: fd });
+  const f=fileEl.files[0]; if(!f){ alert("Sube una imagen"); return; }
+  const mode=document.getElementById('mode').value;
+  const fd=new FormData(); fd.append('file',f); fd.append('mode',mode);
+  const res=await fetch('/evaluate',{method:'POST',body:fd});
   keepPreview();
-  if(!res.ok){
-     alert('Error: '+res.status+' '+await res.text());
-     keepPreview();
-     return;
-  }
-  const data = await res.json();
-  keepPreview();
+  if(!res.ok){ alert('Error: '+res.status+' '+await res.text()); keepPreview(); return; }
+  const data=await res.json(); keepPreview();
 
-  // KPIs
-  document.getElementById('k_bcs').textContent = (data.bcs??'—');
-  document.getElementById('k_global').textContent = (data.global_score??'—');
-  document.getElementById('k_risk').textContent = (data.risk??'—');
-  document.getElementById('k_bonus').textContent = (data.posterior_bonus??0).toFixed(2);
-  document.getElementById('k_decision').textContent = 'Decisión: ' + (data.decision_text || '—');
-  document.getElementById('notes').textContent = data.notes || '';
+  document.getElementById('k_bcs').textContent=(data.bcs??'—');
+  document.getElementById('k_global').textContent=(data.global_score??'—');
+  document.getElementById('k_risk').textContent=(data.risk??'—');
+  document.getElementById('k_bonus').textContent=(data.posterior_bonus??0).toFixed(2);
+  document.getElementById('k_decision').textContent='Decisión: '+(data.decision_text||'—');
+  document.getElementById('notes').textContent=data.notes||'';
 
-  // Reasons
-  const rl = document.getElementById('reasons'); rl.innerHTML='';
-  (data.reasons||[]).forEach(r => { const li = document.createElement('li'); li.textContent = r; rl.appendChild(li); });
+  const rl=document.getElementById('reasons'); rl.innerHTML='';
+  (data.reasons||[]).forEach(r=>{const li=document.createElement('li'); li.textContent=r; rl.appendChild(li);});
 
-  // Rubric
-  const tb = document.querySelector('#rubric tbody'); tb.innerHTML='';
-  (data.rubric||[]).forEach(r => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${r.name}</td><td>${Number(r.score).toFixed(2)}</td><td>${r.obs||''}</td>`;
-    tb.appendChild(tr);
-  });
+  const tb=document.querySelector('#rubric tbody'); tb.innerHTML='';
+  (data.rubric||[]).forEach(r=>{const tr=document.createElement('tr'); tr.innerHTML=`<td>${r.name}</td><td>${Number(r.score).toFixed(2)}</td><td>${r.obs||''}</td>`; tb.appendChild(tr);});
 
-  // Health
-  const hc = document.getElementById('health'); hc.innerHTML='';
-  const ul = document.createElement('ul'); ul.className='list';
-  (data.health||[]).forEach(h => {
-    const li = document.createElement('li');
-    const ok = h.status==='descartado';
-    li.innerHTML = `<span class="dot ${ok?'ok':'bad'}"></span>${h.name} = ${ok?'Descartado':'Sospecha'}`;
-    ul.appendChild(li);
-  });
+  const hc=document.getElementById('health'); hc.innerHTML='';
+  const ul=document.createElement('ul'); ul.className='list';
+  (data.health||[]).forEach(h=>{const li=document.createElement('li'); const ok=h.status==='descartado'; li.innerHTML=`<span class="dot ${ok?'ok':'bad'}"></span>${h.name} = ${ok?'Descartado':'Sospecha'}`; ul.appendChild(li);});
   hc.appendChild(ul);
 
-  // Breed
-  const br = document.getElementById('breed');
-  if(data.breed){
-    br.textContent = `${data.breed.name||'—'} · conf=${(data.breed.confidence??0).toFixed(2)}${data.breed.explanation?(' — '+data.breed.explanation):''}`;
-  } else { br.textContent = '—'; }
+  const br=document.getElementById('breed');
+  if(data.breed){ br.textContent=`${data.breed.name||'—'} · conf=${(data.breed.confidence??0).toFixed(2)}${data.breed.explanation?(' — '+data.breed.explanation):''}`; }
+  else { br.textContent='—'; }
 }
 </script>
 </body>
