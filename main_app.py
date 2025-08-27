@@ -7,7 +7,7 @@ from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.cors import CORSMiddleware
 
-APP_VERSION = "v40t-bcs-nudge-breed-ai"
+APP_VERSION = "v40u-hide-bcs-row"
 
 app = FastAPI(title="GanadoBravo API", version=APP_VERSION)
 

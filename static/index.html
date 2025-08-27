@@ -68,6 +68,7 @@ h2{margin-top:0} .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .breed-badge{display:inline-block;font-size:11px;background:#e5e7eb;color:#334155;padding:2px 6px;border-radius:999px;margin-left:8px}
 .breed-badge.active{background:#dcfce7;color:#065f46}
 .breed-badge.fallback{background:#fee2e2;color:#7f1d1d}
+.gb-legacy-hide{display:none !important}
 </style></head>
 <body><div class="container">
 <div class="card">
@@ -299,7 +300,7 @@ function renderResult(data){
       // hide legacy chips row that repeats BCS/Puntaje/Riesgo con guiones
       document.querySelectorAll('span,div').forEach(el=>{
         const txt = (el.textContent||'').trim().toLowerCase();
-        if(txt.startsWith('puntaje global: —') || txt.startsWith('riesgo: —')){
+        if(txt.startsWith('puntaje global: —') || txt.startsWith('riesgo: —') || txt.startsWith('bcs —') || txt==='bcs —'){
           const row = el.closest('div,section');
           if(row) row.classList.add('gb-hide');
         }
@@ -331,6 +332,27 @@ function renderResult(data){
         if(st!=='active'){ badge.title='Configura OPENAI_API_KEY (o Azure OpenAI) para activar la IA de raza.'; }
       }
     }catch(e){ console.error(e); }
+    if(typeof old==='function'){ try{ old(data,res);}catch(e){} }
+  };
+})();
+</script>
+
+
+<script>
+(function(){
+  function hideLegacyChips(){
+    document.querySelectorAll('*').forEach(function(el){
+      var t=(el.textContent||'').trim().toLowerCase();
+      if(t==='bcs —' || t==='bcs—' || t.startsWith('bcs —')){
+        var row=el.closest('section,div'); if(row) row.classList.add('gb-legacy-hide');
+      }
+    });
+  }
+  // Run after page load and after each evaluation
+  hideLegacyChips();
+  var old = window.__gb_after_fetch;
+  window.__gb_after_fetch = function(data,res){
+    try{ hideLegacyChips(); }catch(e){}
     if(typeof old==='function'){ try{ old(data,res);}catch(e){} }
   };
 })();
