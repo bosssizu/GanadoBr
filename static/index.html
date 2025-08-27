@@ -25,6 +25,12 @@ h2{margin-top:0} .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .overlay pre{white-space:pre-wrap;margin:0}
 .spinner{display:inline-block; width:14px;height:14px;border:2px solid #999;border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-left:6px}
 @keyframes spin{to{transform:rotate(360deg)}}
+.pill{display:inline-block;padding:.35rem .6rem;border-radius:999px;font-weight:700}
+.pill.buy{background:#22c55e22;color:#166534}
+.pill.hi{background:#f59e0b22;color:#7c2d12}
+.pill.low{background:#fde04722;color:#854d0e}
+.pill.no{background:#ef444422;color:#7f1d1d}
+.tbl td{padding:.45rem .5rem;border-bottom:1px solid #eee}
 </style></head>
 <body><div class="container">
 <div class="card">
@@ -60,9 +66,9 @@ h2{margin-top:0} .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   <hr/>
   <h3>Rúbrica detallada</h3>
   <table class="table" id="rub"></table>
-  <h3>Salud</h3>
+  <h3>Salud</h3><ul id="health_list"></ul>
   <ul id="health"></ul>
-  <h3>Raza</h3>
+  <h3>Raza</h3><div id="breed_line">—</div>
   <div id="breed" class="small">—</div>
 </div>
 </div>
@@ -80,7 +86,7 @@ f('eval').onclick=async ()=>{
   const url = (location.origin + '/evaluate'); const res=await fetch(url,{method:'POST',body:fd});
   const data=await res.json();
   if(!res.ok && data.status==='error'){ alert('Error: '+JSON.stringify(data)); return;}
-  f('decision').textContent='Decisión: '+(data.decision_text||'—');
+  f('decision').textContent='Decisión: <span id="decision_text">—</span> '+(data.decision_text||'—');
   f('bcs').textContent=data.bcs?.toFixed?data.bcs.toFixed(2):data.bcs;
   f('gscore').textContent=data.global_score?.toFixed?data.global_score.toFixed(2):data.global_score;
   f('risk').textContent=data.risk;
@@ -102,7 +108,62 @@ f('eval').onclick=async ()=>{
 document.getElementById('togglejson').onclick=()=>{ const b=document.getElementById('jsonbox'); b.style.display = (b.style.display==='none'?'block':'none'); };
 window.addEventListener('unhandledrejection', e=>{const ov=document.getElementById('overlay'); const ovpre=document.getElementById('ovpre'); ov.style.display='block'; ovpre.textContent='unhandled: '+e.reason;});
 </script>
-<div id="overlay" class="overlay"><div id="ovtitle">Debug</div><pre id="ovpre"></pre></div></body></html>
+<div id="overlay" class="overlay"><div id="ovtitle">Debug</div><pre id="ovpre"></pre></div>
+<script>
+function to2(x){ if(x===undefined||x===null) return '—'; let n=Number(x); if(Number.isNaN(n)) return String(x); return (n%1===0)? n.toFixed(0): n.toFixed(2); }
+function setText(id, v){ const el=document.getElementById(id); if(el) el.textContent=v; }
+function decisionClass(level){
+  if(level==='COMPRAR') return 'buy';
+  if(level==='CONSIDERAR_ALTO') return 'hi';
+  if(level==='CONSIDERAR_BAJO') return 'low';
+  return 'no';
+}
+function renderResult(data){
+  // Decision + cards
+  const dTxt = data.decision_text || '—';
+  const dLvl = data.decision_level || '';
+  setText('decision_text', dTxt);
+  const decSpan=document.getElementById('decision_text');
+  if(decSpan){ decSpan.className='pill '+decisionClass(dLvl); }
+  setText('bcs_val', to2(data.bcs));
+  setText('global_val', to2(data.global_score));
+  setText('risk_val', to2(data.risk));
+
+  // Rubric table
+  const tb = document.getElementById('rubric_tbody');
+  if(tb){ tb.innerHTML=''; (data.rubric||[]).forEach(r=>{
+      const tr=document.createElement('tr');
+      tr.innerHTML = `<td>${r.name||'—'}</td><td>${to2(r.score)}</td><td>${r.obs||''}</td>`;
+      tb.appendChild(tr);
+  }); }
+
+  // Salud
+  const hl = document.getElementById('health_list');
+  if(hl){ hl.innerHTML=''; (data.health||[]).forEach(h=>{
+      const li=document.createElement('li');
+      li.textContent = `${h.name} = ${h.status==='descartado'?'Descartado':(h.status||'—')}`;
+      hl.appendChild(li);
+  }); }
+
+  // Raza
+  const br = data.breed || {};
+  const fam = br.family ? ` · ${br.family}` : '';
+  const dom = (br.dominant && br.dominant!=='ninguno') ? ` · predomina ${br.dominant}` : '';
+  const line = (br.name||'—') + ` · conf=${to2(br.confidence)}${fam}${dom}` + (br.explanation?` — ${br.explanation}`:'');
+  setText('breed_line', line);
+}
+
+// Hook into existing fetch flow (added in previous build)
+(function(){
+  const oldFetchHandler = window.__gb_after_fetch;
+  window.__gb_after_fetch = function(data, res){
+    try{ renderResult(data); }catch(e){ console.error('render error', e); }
+    if(typeof oldFetchHandler==='function'){ try{ oldFetchHandler(data, res);}catch(e){} }
+  };
+})();
+</script>
+
+</body></html>
 
 <script>
 (function(){
@@ -121,14 +182,13 @@ window.addEventListener('unhandledrejection', e=>{const ov=document.getElementBy
         const url = location.origin + '/evaluate';
         const res = await fetch(url, {method:'POST', body:fd});
         let data; try{ data = await res.json(); }catch(e){ data = {status:'error', code:res.status, message:'non-JSON response'}; }
-        log('status:'+res.status+'\n'+JSON.stringify(data,null,2));
-        const banner = byId('banner');
-        if(!res.ok || (data && data.status==='error')){ banner.innerHTML = '<div class="banner err">⚠️ '+(data.message||res.statusText)+'</div>'; }
-        else { banner.innerHTML = '<div class="banner ok">✅ Evaluación completada</div>'; }
-        // Minimal render so no queda vacío
-        if(data && data.global_score!==undefined){ 
-          const gsEl = document.querySelector('[data-field="global_score"]') || document.querySelector('div'); 
-        }
+      log('status:'+res.status+'
+'+JSON.stringify(data,null,2));
+      const banner = byId('banner');
+      if(!res.ok || (data && data.status==='error')){ banner.innerHTML = '<div class="banner err">⚠️ '+(data.message||res.statusText)+'</div>'; }
+      else { banner.innerHTML = '<div class="banner ok">✅ Evaluación completada</div>'; }
+      try{ if(window.__gb_after_fetch) window.__gb_after_fetch(data, res);}catch(e){}
+}
       }catch(e){ log('ex: '+e.message); alert('Fallo al evaluar: '+e.message); }
     });
   }catch(e){console.error(e)}
