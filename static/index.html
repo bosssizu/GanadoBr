@@ -29,7 +29,7 @@ h2{margin-top:0} .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     <option value="vaca_flaca">Vaca flaca</option>
     <option value="engorde">Engorde</option>
   </select><br/><br/>
-  <button class="btn" id="eval">Evaluar</button>
+  <button class="btn" id="eval" type="button">Evaluar</button>
   <br/><br/>
   <div class="preview" id="preview"><span class="small">vista previa</span></div>
   <br/>
@@ -90,6 +90,6 @@ f('eval').onclick=async ()=>{
     const nameTxt = (data.breed.name||'—'); const already = nameTxt.toLowerCase().includes('predomina'); const fam = data.breed.family? ` · ${data.breed.family}`: ''; const dom = (!already && data.breed.dominant && data.breed.dominant!=='ninguno')? ` · predomina ${data.breed.dominant}`: ''; br.textContent=`${nameTxt} · conf=${(data.breed.confidence??0).toFixed(2)}${fam}${dom}${data.breed.explanation?(' — '+data.breed.explanation):''}`;
   } else { br.textContent='—'; }
   const rs=f('reasons'); rs.innerHTML=''; (data.reasons||[]).forEach(x=>{const li=document.createElement('li'); li.textContent=x; rs.appendChild(li);});
-};
+});
 </script>
 </body></html>
