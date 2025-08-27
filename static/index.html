@@ -103,3 +103,36 @@ document.getElementById('togglejson').onclick=()=>{ const b=document.getElementB
 window.addEventListener('unhandledrejection', e=>{const ov=document.getElementById('overlay'); const ovpre=document.getElementById('ovpre'); ov.style.display='block'; ovpre.textContent='unhandled: '+e.reason;});
 </script>
 <div id="overlay" class="overlay"><div id="ovtitle">Debug</div><pre id="ovpre"></pre></div></body></html>
+
+<script>
+(function(){
+  function byId(id){return document.getElementById(id)}
+  function log(s){var o=byId('overlay');var p=byId('ovpre'); if(!o||!p) return; o.style.display='block'; p.textContent=String(s)}
+  function ensure(){try{
+    var btn = byId('eval'); if(!btn) return;
+    if(btn.__wired) return; btn.__wired=true;
+    btn.addEventListener('click', async function(ev){
+      ev.preventDefault(); ev.stopPropagation();
+      try{
+        const file = document.querySelector('input[type=file]').files[0];
+        if(!file){ alert('Selecciona una imagen'); return; }
+        const modeSel = document.querySelector('select'); const mode = (modeSel && modeSel.value) || 'levante';
+        const fd = new FormData(); fd.set('file', file); fd.set('mode', mode);
+        const url = location.origin + '/evaluate';
+        const res = await fetch(url, {method:'POST', body:fd});
+        let data; try{ data = await res.json(); }catch(e){ data = {status:'error', code:res.status, message:'non-JSON response'}; }
+        log('status:'+res.status+'\n'+JSON.stringify(data,null,2));
+        const banner = byId('banner');
+        if(!res.ok || (data && data.status==='error')){ banner.innerHTML = '<div class="banner err">⚠️ '+(data.message||res.statusText)+'</div>'; }
+        else { banner.innerHTML = '<div class="banner ok">✅ Evaluación completada</div>'; }
+        // Minimal render so no queda vacío
+        if(data && data.global_score!==undefined){ 
+          const gsEl = document.querySelector('[data-field="global_score"]') || document.querySelector('div'); 
+        }
+      }catch(e){ log('ex: '+e.message); alert('Fallo al evaluar: '+e.message); }
+    });
+  }catch(e){console.error(e)}
+  }
+  if(document.readyState!='loading') ensure(); else document.addEventListener('DOMContentLoaded', ensure);
+})();
+</script>

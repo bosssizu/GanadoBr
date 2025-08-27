@@ -7,7 +7,7 @@ from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.cors import CORSMiddleware
 
-APP_VERSION = "v40k-main-fix"
+APP_VERSION = "v40m-ui-post-ping"
 
 app = FastAPI(title="GanadoBravo API", version=APP_VERSION)
 
@@ -115,3 +115,8 @@ def catch_all(path: str):
         return JSONResponse({"detail":"Not Found"}, status_code=404)
     idx = os.path.join(static_dir, "index.html")
     return FileResponse(idx) if os.path.exists(idx) else HTMLResponse("<h1>GanadoBravo</h1>")
+
+
+@app.get("/ping")
+def ping():
+    return {"ok": True, "ts": int(time.time())}
