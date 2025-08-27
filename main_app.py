@@ -5,7 +5,7 @@ from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 
-APP_VERSION = "v40i-fallback-fix"
+APP_VERSION = "v40j-absurl-debug"
 
 app = FastAPI(title="GanadoBravo API", version=APP_VERSION)
 LAST_ERROR = None
