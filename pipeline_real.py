@@ -108,7 +108,7 @@ Analiza la imagen y devuelve SOLO este JSON minimal:
 Reglas:
 - Si es Cebú puro, family="Cebú" y dominant ∈ {Brahman,Nelore,Gyr,Guzerá} si se distingue, de lo contrario "indicus".
 - Si es europeo puro, family="Taurus europeo" y dominant ∈ {Angus,Hereford,Holstein,Simmental,Charolais,Limousin,Brown Swiss,Jersey,Criollo} si se distingue.
-- Si es mezcla evidente, family="Cruza indicus×taurus". Para compuestos conocidos usa dominant ∈ {Brangus,Braford,Santa Gertrudis,Beefmaster,Simbrah,Girolando} si aplica.
+- Si es mezcla evidente, family="Cruza indicus×taurus". Para compuestos conocidos usa dominant ∈ {Brangus,Braford,Santa Gertrudis,Beefmaster,Simbrah,Girolando} si aplica; y si la mezcla es con Criollo (p.ej., Criollo×Brahman) puedes usar dominant="Criollo" cuando sus rasgos taurinos dominen.
 - Si la evidencia es pobre, usa family="Indeterminado" y dominant="ninguno" con baja confianza.
 - Nota: “Simental” ≡ "Simmental"; “Pardo Suizo” ≡ "Brown Swiss".
 """
