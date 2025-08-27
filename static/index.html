@@ -65,6 +65,9 @@ h2{margin-top:0} .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 /* legacy chips row hidden */
 .gb-hide{display:none !important}
 .preview img{max-width:100%;height:auto;border-radius:8px;object-fit:contain}
+.breed-badge{display:inline-block;font-size:11px;background:#e5e7eb;color:#334155;padding:2px 6px;border-radius:999px;margin-left:8px}
+.breed-badge.active{background:#dcfce7;color:#065f46}
+.breed-badge.fallback{background:#fee2e2;color:#7f1d1d}
 </style></head>
 <body><div class="container">
 <div class="card">
@@ -309,6 +312,27 @@ function renderResult(data){
     }catch(e){ console.error(e); }
     if(typeof old==='function'){ try{ old(data,res);}catch(e){} }
   }
+})();
+</script>
+
+
+<script>
+(function(){
+  const old = window.__gb_after_fetch;
+  window.__gb_after_fetch = function(data,res){
+    try{
+      const breedLine = document.getElementById('breed_line') || document.querySelector('h3 + div');
+      if(breedLine){
+        let badge = document.getElementById('breed_badge');
+        if(!badge){ badge = document.createElement('span'); badge.id='breed_badge'; breedLine.parentNode.insertBefore(badge, breedLine); }
+        const st = data.breed_status || (data.breed && /Clasificación local/i.test(data.breed.explanation||'') ? 'fallback' : 'active');
+        badge.className = 'breed-badge ' + (st==='active'?'active':'fallback');
+        badge.textContent = st==='active' ? 'IA activa' : 'IA inactiva (fallback)';
+        if(st!=='active'){ badge.title='Configura OPENAI_API_KEY (o Azure OpenAI) para activar la IA de raza.'; }
+      }
+    }catch(e){ console.error(e); }
+    if(typeof old==='function'){ try{ old(data,res);}catch(e){} }
+  };
 })();
 </script>
 

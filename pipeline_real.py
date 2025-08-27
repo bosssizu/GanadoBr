@@ -50,8 +50,8 @@ def _provider() -> str:
 def _breed_model() -> str:
     return os.getenv("BREED_MODEL", "gpt-4o-mini")
 
-def _bre_timeout() -> int:
-    return int(os.getenv("BREED_TIMEOUT", "8"))
+def _bre_timeout():
+    return int(os.getenv("BREED_TIMEOUT", "14"))
 
 def _sdk_available(provider: str) -> bool:
     try:
@@ -159,7 +159,20 @@ Reglas:
     except Exception:
         return _mk("Cruza (indicus/taurus posible)", 0.52, "Clasificación local (IA no disponible)", "Cruza indicus×taurus", "indicus")
 
+
+# ------------------ Ajuste BCS (visual & gating) ------------------
+def _adjust_bcs(bcs: float, rubric: List[Dict[str,Any]], mode: str) -> float:
+    # 1) cuantiza a múltiplos de 0.25 para alinearse con lectura de campo
+    q = round(round(bcs * 4) / 4.0, 2)
+    # 2) regla suave de redondeo hacia 3.0 en levante cuando el fenotipo acompaña
+    f = _floors(rubric)
+    if mode == "levante" and 2.55 <= q < 3.0 and f["dorsal"] >= 6.8 and f["posterior"] >= 6.7:
+        q = 3.0
+    # en modos VF/engorde, mantenemos la cuantización sin forzar salto
+    return max(1.0, min(5.0, q))
+
 # ------------------ Decisiones por modo ------------------
+
 def _floors(rubric: List[Dict[str,Any]]) -> Dict[str,float]:
     d = {r["name"]: float(r["score"]) for r in rubric}
     def g(k: str, default: float = 6.0) -> float: return d.get(k, default)
@@ -205,7 +218,7 @@ def _decide_eng(score: float, bcs: float, risk: float, rubric: List[Dict[str,Any
     return _apply_risk_degrade(level,risk)
 
 def format_output(agg: Dict[str,Any], health: List[Dict[str,Any]], breed: Dict[str,Any], mode: str) -> Dict[str,Any]:
-    score = agg["global_score"]; bcs = agg["bcs"]; risk = agg["risk"]; rubric = agg["rubric"]
+    score = agg["global_score"]; bcs = _adjust_bcs(agg["bcs"], agg["rubric"], mode); risk = agg["risk"]; rubric = agg["rubric"]
     if mode == "levante":
         decision = _decide_levante(score,bcs,risk,rubric)
     elif mode == "vaca_flaca":
