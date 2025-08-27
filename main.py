@@ -10,7 +10,7 @@ from pipeline_real import (
     run_breed_prompt, format_output
 )
 
-APP_VERSION = "v39l-fullui"
+APP_VERSION = "v39l-fullui-kpis"
 
 app = FastAPI(title="GanadoBravo API", version=APP_VERSION)
 
