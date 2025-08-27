@@ -10,7 +10,7 @@ from pipeline_real import (
     run_breed_prompt, format_output
 )
 
-APP_VERSION = "v39l-fullui-kpis"
+APP_VERSION = "v39m-fullui-kpis-levante"
 
 app = FastAPI(title="GanadoBravo API", version=APP_VERSION)
 
@@ -30,10 +30,6 @@ LAST_ERROR = {"when": None, "where": None, "msg": None}
 @app.get("/", response_class=HTMLResponse)
 def index():
     return FileResponse(os.path.join(static_dir, "index.html"))
-
-@app.get("/api/health")
-def health():
-    return {"ok": True, "version": APP_VERSION}
 
 @app.get("/api/diag")
 def diag():

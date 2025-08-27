@@ -15,7 +15,6 @@
 .btn{background:#111827;color:#fff;border:0;border-radius:10px;padding:10px 14px;cursor:pointer}
 .input{width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:10px}
 .row{display:flex;gap:8px;align-items:center}
-.badge{display:none} /* ocultamos bloque de calidad */
 .kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
 .kpi .tile{background:#fff;border:1px solid #eef2f7;border-radius:12px;padding:12px}
 .kpi .title{font-size:12px;color:#64748b}
@@ -28,6 +27,7 @@
 .preview{height:220px;background:#f1f5f9;border:1px dashed #e5e7eb;border-radius:12px;display:flex;align-items:center;justify-content:center}
 .preview img{max-height:100%;max-width:100%;object-fit:contain;border-radius:10px}
 .footer{color:#9ca3af;font-size:12px;margin-top:10px}
+.hidden{display:none}
 </style>
 </head>
 <body>
@@ -61,6 +61,7 @@
 
     <div class="card">
       <h3 class="h">Resultado</h3>
+
       <div class="kpi" style="margin-top:12px">
         <div class="tile"><div class="title">BCS</div><div class="value" id="k_bcs">—</div></div>
         <div class="tile"><div class="title">Puntaje global</div><div class="value" id="k_global">—</div></div>
@@ -93,22 +94,23 @@
 </div>
 
 <script>
-let previewURL = null;
+// --- Preview using DataURL (persists reliably) ---
+let previewData = null;
 const fileEl = document.getElementById('file');
 const previewImg = document.getElementById('previewImg');
+
 fileEl.addEventListener('change', () => {
   const f = fileEl.files[0];
   if (!f) return;
-  if (previewURL) URL.revokeObjectURL(previewURL);
-  previewURL = URL.createObjectURL(f);
-  previewImg.src = previewURL;
+  const reader = new FileReader();
+  reader.onload = (e) => { previewData = e.target.result; previewImg.src = previewData; };
+  reader.readAsDataURL(f);
 });
+
 document.getElementById('evalBtn').addEventListener('click', evaluate);
-function persistPreview(){
-  if (previewImg && (!previewImg.src || previewImg.src === '')) {
-    previewImg.src = previewURL || previewImg.src;
-  }
-}
+
+function keepPreview(){ if(previewImg && previewData) previewImg.src = previewData; }
+
 async function evaluate(){
   const f = fileEl.files[0];
   if(!f){ alert("Sube una imagen"); return; }
@@ -118,32 +120,30 @@ async function evaluate(){
   fd.append('file', f);
   fd.append('mode', mode);
   const res = await fetch('/evaluate', { method:'POST', body: fd });
-  persistPreview();
+  keepPreview();
   if(!res.ok){
      alert('Error: '+res.status+' '+await res.text()); 
-     persistPreview();
-     return;
+     keepPreview(); return;
   }
   const data = await res.json();
-  persistPreview();
-  // KPIs
+  keepPreview();
   document.getElementById('k_bcs').textContent = (data.bcs??'—');
   document.getElementById('k_global').textContent = (data.global_score??'—');
   document.getElementById('k_risk').textContent = (data.risk??'—');
   document.getElementById('k_bonus').textContent = (data.posterior_bonus??0).toFixed(2);
   document.getElementById('k_decision').textContent = 'Decisión: ' + (data.decision_text || '—');
   document.getElementById('notes').textContent = data.notes || '';
-  // Reasons
+
   const rl = document.getElementById('reasons'); rl.innerHTML='';
   (data.reasons||[]).forEach(r => { const li = document.createElement('li'); li.textContent = r; rl.appendChild(li); });
-  // Rubric
+
   const tb = document.querySelector('#rubric tbody'); tb.innerHTML='';
   (data.rubric||[]).forEach(r => {
     const tr = document.createElement('tr');
     tr.innerHTML = `<td>${r.name}</td><td>${Number(r.score).toFixed(2)}</td><td>${r.obs||''}</td>`;
     tb.appendChild(tr);
   });
-  // Health
+
   const hc = document.getElementById('health'); hc.innerHTML='';
   const ul = document.createElement('ul'); ul.className='list';
   (data.health||[]).forEach(h => {
@@ -153,7 +153,7 @@ async function evaluate(){
     ul.appendChild(li);
   });
   hc.appendChild(ul);
-  // Breed
+
   const br = document.getElementById('breed');
   if(data.breed){
     br.textContent = `${data.breed.name||'—'} · conf=${(data.breed.confidence??0).toFixed(2)}${data.breed.explanation?(' — '+data.breed.explanation):''}`;

@@ -1,19 +1,8 @@
-# GanadoBravo v39l-fullui-kpis — Riesgo y Bono visibles
+# GanadoBravo v39m — KPIs + Levante tuned + preview fijo
 
-- Mismo backend AI end-to-end (v39l).
-- UI con **4 KPIs**: BCS, Puntaje global, **Riesgo** y **Bono posterior** (visibles).
-- Vista previa **persistente** tras evaluar.
-- Bloque de calidad de entrada oculto.
+**Cambios:**
+1) **Levante**: umbrales más permisivos → animales flacos pero sanos con BCS≈2.7–3.6 y riesgo≤0.45 pasan a **Considerar (alto)** con puntaje ≥5.2.
+2) **Calidad de entrada**: fila superior eliminada de la UI.
+3) **Vista previa**: ahora usa **DataURL**; ya no se rompe tras Evaluar.
 
-Variables sugeridas (Railway):
-```
-ENABLE_AI_RUBRIC=1
-LLM_PROVIDER=openai
-OPENAI_API_KEY=sk-...
-OPENAI_MODEL=gpt-4o-mini
-LLM_TIMEOUT_SEC=18
-LLM_RETRIES=2
-WATCHDOG_SECONDS=40
-ENABLE_BREED=1        # opcional
-MAX_IMAGE_MB=8
-```
+Backend AI end-to-end con fallback. Diagnóstico: `/api/diag`.
