@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>GanadoBravo — Evaluación</title>
 <style>
-:root{--bg:#f5f7fb;--fg:#0f172a;--muted:#6b7280;--card:#fff;--ok:#16a34a;--bad:#ef4444;--chip:#e5e7eb;}
+:root{--bg:#f5f7fb;--fg:#0f172a;--muted:#6b7280;--card:#fff;--ok:#16a34a;--bad:#ef4444;}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial}
 .container{max-width:1120px;margin:24px auto;padding:0 16px}
 .grid{display:grid;grid-template-columns:280px 1fr;gap:16px}
@@ -14,7 +14,6 @@
 .small{color:var(--muted);font-size:13px}
 .btn{background:#111827;color:#fff;border:0;border-radius:10px;padding:10px 14px;cursor:pointer}
 .input{width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:10px}
-.row{display:flex;gap:8px;align-items:center}
 .kpi{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
 .kpi .tile{background:#fff;border:1px solid #eef2f7;border-radius:12px;padding:12px}
 .kpi .title{font-size:12px;color:#64748b}
@@ -27,7 +26,6 @@
 .preview{height:220px;background:#f1f5f9;border:1px dashed #e5e7eb;border-radius:12px;display:flex;align-items:center;justify-content:center}
 .preview img{max-height:100%;max-width:100%;object-fit:contain;border-radius:10px}
 .footer{color:#9ca3af;font-size:12px;margin-top:10px}
-.hidden{display:none}
 </style>
 </head>
 <body>
@@ -42,17 +40,18 @@
       <div style="margin-bottom:10px">
         <label class="small">Modo</label>
         <select id="mode" class="input">
-          <option value="levante">Levante</option>
-          <option value="subasta">Subasta</option>
+          <option value="levante">Levante (default)</option>
+          <option value="vaca_flaca">Vaca flaca</option>
+          <option value="engorde">Engorde</option>
         </select>
       </div>
-      <div class="row" style="justify-content:space-between">
+      <div class="row" style="display:flex;justify-content:space-between;align-items:center">
         <button class="btn" id="evalBtn">Evaluar</button>
         <span id="modehint" class="small">modo=levante</span>
       </div>
       <div style="height:12px"></div>
       <div class="small">Vista previa</div>
-      <div class="preview" id="preview"><img id="previewImg" alt="vista previa"/></div>
+      <div class="preview"><img id="previewImg" alt="vista previa"/></div>
       <div style="height:12px"></div>
       <div class="small">Notas y razones</div>
       <ul class="list" id="reasons"></ul>
@@ -61,7 +60,6 @@
 
     <div class="card">
       <h3 class="h">Resultado</h3>
-
       <div class="kpi" style="margin-top:12px">
         <div class="tile"><div class="title">BCS</div><div class="value" id="k_bcs">—</div></div>
         <div class="tile"><div class="title">Puntaje global</div><div class="value" id="k_global">—</div></div>
@@ -94,7 +92,7 @@
 </div>
 
 <script>
-// --- Preview using DataURL (persists reliably) ---
+// Stable preview using DataURL
 let previewData = null;
 const fileEl = document.getElementById('file');
 const previewImg = document.getElementById('previewImg');
@@ -114,19 +112,24 @@ function keepPreview(){ if(previewImg && previewData) previewImg.src = previewDa
 async function evaluate(){
   const f = fileEl.files[0];
   if(!f){ alert("Sube una imagen"); return; }
-  const mode = document.getElementById('mode').value;
+  const modeSel = document.getElementById('mode');
+  const mode = modeSel.value;
   document.getElementById('modehint').textContent = `modo=${mode}`;
+
   const fd = new FormData();
   fd.append('file', f);
   fd.append('mode', mode);
+
   const res = await fetch('/evaluate', { method:'POST', body: fd });
   keepPreview();
   if(!res.ok){
-     alert('Error: '+res.status+' '+await res.text()); 
-     keepPreview(); return;
+     alert('Error: '+res.status+' '+await res.text());
+     keepPreview();
+     return;
   }
   const data = await res.json();
   keepPreview();
+
   document.getElementById('k_bcs').textContent = (data.bcs??'—');
   document.getElementById('k_global').textContent = (data.global_score??'—');
   document.getElementById('k_risk').textContent = (data.risk??'—');

@@ -6,11 +6,10 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 
 from pipeline_real import (
-    run_ai_rubric, run_baseline_rubric, detect_health,
-    run_breed_prompt, format_output
+    run_rubric_timeboxed, detect_health, run_breed_prompt, format_output
 )
 
-APP_VERSION = "v39m-fullui-kpis-levante"
+APP_VERSION = "v39n-fullui-modes"
 
 app = FastAPI(title="GanadoBravo API", version=APP_VERSION)
 
@@ -41,29 +40,28 @@ def diag():
             "ENABLE_BREED": os.getenv("ENABLE_BREED","0"),
             "LLM_PROVIDER": os.getenv("LLM_PROVIDER","openai"),
             "OPENAI_MODEL": os.getenv("OPENAI_MODEL","gpt-4o-mini"),
-            "LLM_TIMEOUT_SEC": int(os.getenv("LLM_TIMEOUT_SEC","18")),
-            "LLM_RETRIES": int(os.getenv("LLM_RETRIES","2")),
-            "WATCHDOG_SECONDS": int(os.getenv("WATCHDOG_SECONDS","40")),
+            "LLM_TIMEOUT_SEC": int(os.getenv("LLM_TIMEOUT_SEC","7")),
+            "LLM_RETRIES": int(os.getenv("LLM_RETRIES","0")),
+            "TIME_BUDGET_SEC": int(os.getenv("TIME_BUDGET_SEC","9")),
+            "WATCHDOG_SECONDS": int(os.getenv("WATCHDOG_SECONDS","20")),
         },
         "last_error": LAST_ERROR,
     }
 
 MAX_IMAGE_MB = int(os.getenv("MAX_IMAGE_MB","8"))
-WATCHDOG_SECONDS = int(os.getenv("WATCHDOG_SECONDS","40"))
+WATCHDOG_SECONDS = int(os.getenv("WATCHDOG_SECONDS","20"))
 
 async def _evaluate_internal(img_bytes: bytes, mode: str):
     t0 = time.time()
     try:
-        agg = run_ai_rubric(img_bytes, mode)  # AI-first
-        ai_used = True
+        agg = run_rubric_timeboxed(img_bytes, mode)
+        ai_used = agg.get("notes","").startswith("ai_")
     except Exception as e:
-        LAST_ERROR.update({"when": time.time(), "where": "run_ai_rubric", "msg": str(e)})
-        agg = run_baseline_rubric(img_bytes, mode)  # fallback
-        ai_used = False
+        LAST_ERROR.update({"when": time.time(), "where": "run_rubric_timeboxed", "msg": str(e)})
+        raise
 
     health = detect_health(img_bytes, agg)
     breed = run_breed_prompt(img_bytes)
-
     out = format_output(agg, health, breed, mode)
     out["debug"] = {"latency_ms": int((time.time()-t0)*1000), "ai_used": ai_used}
     return out
