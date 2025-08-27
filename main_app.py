@@ -5,7 +5,7 @@ from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 
-APP_VERSION = "v40d-force-post"
+APP_VERSION = "v40e-defensive-eval"
 
 app = FastAPI(title="GanadoBravo API", version=APP_VERSION)
 app.add_middleware(
@@ -74,3 +74,18 @@ def catch_all(path: str):
     if path.startswith("api") or path.startswith("static"):
         return JSONResponse({"detail":"Not Found"}, status_code=404)
     return FileResponse(os.path.join(static_dir, "index.html"))
+
+
+from fastapi import Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from starlette.middleware.cors import CORSMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    return JSONResponse({"status":"error","code":exc.status_code,"message":exc.detail}, status_code=exc.status_code)
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse({"status":"error","code":422,"message":"validation error","detail":exc.errors()}, status_code=422)
