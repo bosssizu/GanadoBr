@@ -138,50 +138,77 @@ def _apply_risk_degrade(level:str, risk:float)->str:
     elif risk>0.40: idx=max(0, idx-1)
     return order[idx]
 
+
 def _decide_levante_strict(score:float,bcs:float,risk:float,rubric:List[Dict[str,Any]]):
     floors=_floors_for_CA_and_buy(rubric)
-    if bcs < 2.0 or risk >= 0.65: level="NO_COMPRAR"
-    elif (bcs < 2.4 or risk >= 0.55 or score < 5.0): level="CONSIDERAR_BAJO"
+    decision_path = "base"
+    if bcs < 2.0 or risk >= 0.65:
+        level="NO_COMPRAR"; decision_path="hard_no"
+    elif (bcs < 2.4 or risk >= 0.55 or score < 5.0):
+        level="CONSIDERAR_BAJO"; decision_path="cb_base"
     elif (score >= 6.4 and risk <= 0.38 and bcs >= 2.8 and floors["dorsal"]>=6.0 and floors["posterior"]>=6.8):
-        level="CONSIDERAR_ALTO"
+        level="CONSIDERAR_ALTO"; decision_path="ca_path_A"
+    # Compensatory path B
+    elif (score >= 6.45 and risk <= 0.35 and bcs >= 2.8 and floors["dorsal"]>=7.0 and floors["conform"]>=6.6 and floors["pecho"]>=6.1 and floors["posterior"]>=5.7):
+        level="CONSIDERAR_ALTO"; decision_path="ca_path_B"
     else:
-        level="CONSIDERAR_BAJO"
-    # Comprar muy estricto
+        level="CONSIDERAR_BAJO"; decision_path="cb_fallback"
     if (score >= 7.6 and 2.8 <= bcs <= 4.5 and risk <= 0.30 and floors["dorsal"]>=6.5 and floors["posterior"]>=7.0):
-        level="COMPRAR"
-    return _apply_risk_degrade(level,risk)
+        level="COMPRAR"; decision_path="buy_strict"
+    level=_apply_risk_degrade(level,risk)
+    return level, decision_path
+
+
 
 def _decide_vaca_flaca_strict(score:float,bcs:float,risk:float,rubric:List[Dict[str,Any]]):
     floors=_floors_for_CA_and_buy(rubric)
-    if bcs < 1.8 or risk >= 0.70: level="NO_COMPRAR"
-    elif (bcs < 2.3 or risk >= 0.55 or score < 5.2): level="CONSIDERAR_BAJO"
+    decision_path="vf_base"
+    if bcs < 1.8 or risk >= 0.70:
+        level="NO_COMPRAR"; decision_path="vf_hard_no"
+    elif (bcs < 2.3 or risk >= 0.55 or score < 5.2):
+        level="CONSIDERAR_BAJO"; decision_path="vf_cb_base"
     elif (score >= 6.0 and risk <= 0.40 and bcs >= 2.4 and floors["posterior"]>=6.6):
-        level="CONSIDERAR_ALTO"
+        level="CONSIDERAR_ALTO"; decision_path="vf_ca_path_A"
+    # Compensatory path B (vaca flaca): dorsal fuerte compensa posterior moderado
+    elif (score >= 6.10 and risk <= 0.38 and bcs >= 2.3 and floors["dorsal"]>=6.8 and floors["conform"]>=6.5 and floors["pecho"]>=6.0 and floors["posterior"]>=5.5):
+        level="CONSIDERAR_ALTO"; decision_path="vf_ca_path_B"
     else:
-        level="CONSIDERAR_BAJO"
+        level="CONSIDERAR_BAJO"; decision_path="vf_cb_fallback"
     if (score >= 7.2 and 2.4 <= bcs <= 4.2 and risk <= 0.30 and floors["dorsal"]>=6.3 and floors["posterior"]>=6.9):
-        level="COMPRAR"
-    return _apply_risk_degrade(level,risk)
+        level="COMPRAR"; decision_path="vf_buy_strict"
+    level=_apply_risk_degrade(level,risk)
+    return level, decision_path
+
+
 
 def _decide_engorde_strict(score:float,bcs:float,risk:float,rubric:List[Dict[str,Any]]):
     floors=_floors_for_CA_and_buy(rubric)
-    if bcs < 2.0 or bcs > 4.6 or risk >= 0.65: level="NO_COMPRAR"
-    elif risk >= 0.55 or score < 5.3: level="CONSIDERAR_BAJO"
+    decision_path="eng_base"
+    if bcs < 2.0 or bcs > 4.6 or risk >= 0.65:
+        level="NO_COMPRAR"; decision_path="eng_hard_no"
+    elif risk >= 0.55 or score < 5.3:
+        level="CONSIDERAR_BAJO"; decision_path="eng_cb_base"
     elif (2.2 <= bcs <= 4.0 and score >= 6.0 and risk <= 0.45 and floors["posterior"]>=6.7):
-        level="CONSIDERAR_ALTO"
+        level="CONSIDERAR_ALTO"; decision_path="eng_ca_path_A"
+    # Compensatory path B (engorde)
+    elif (2.3 <= bcs <= 4.0 and score >= 6.20 and risk <= 0.40 and floors["dorsal"]>=6.8 and floors["conform"]>=6.5 and floors["pecho"]>=6.1 and floors["posterior"]>=6.0):
+        level="CONSIDERAR_ALTO"; decision_path="eng_ca_path_B"
     else:
-        level="CONSIDERAR_BAJO"
+        level="CONSIDERAR_BAJO"; decision_path="eng_cb_fallback"
     if (2.6 <= bcs <= 3.8 and score >= 7.0 and risk <= 0.35 and floors["dorsal"]>=6.3 and floors["posterior"]>=7.0):
-        level="COMPRAR"
-    return _apply_risk_degrade(level,risk)
+        level="COMPRAR"; decision_path="eng_buy_strict"
+    level=_apply_risk_degrade(level,risk)
+    return level, decision_path
+
 
 def format_output(agg:Dict[str,Any], health:List[Dict[str,Any]], breed:Dict[str,Any], mode:str)->Dict[str,Any]:
+    decision_path='base'
     score = agg["global_score"] + agg.get("posterior_bonus",0.0)
     bcs = agg["bcs"]; risk = agg["risk"]; rubric=agg["rubric"]
-    if mode == "levante": decision_level = _decide_levante_strict(score,bcs,risk,rubric)
-    elif mode == "vaca_flaca": decision_level = _decide_vaca_flaca_strict(score,bcs,risk,rubric)
-    elif mode == "engorde": decision_level = _decide_engorde_strict(score,bcs,risk,rubric)
-    else: decision_level = _decide_levante_strict(score,bcs,risk,rubric)
+    if mode == "levante": decision_level, decision_path = _decide_levante_strict(score,bcs,risk,rubric)
+    elif mode == "vaca_flaca": decision_level, decision_path = _decide_vaca_flaca_strict(score,bcs,risk,rubric)
+    elif mode == "engorde": decision_level, decision_path = _decide_engorde_strict(score,bcs,risk,rubric)
+    else: decision_level, decision_path = _decide_levante_strict(score,bcs,risk,rubric)
 
     text_map={"NO_COMPRAR":"No comprar","CONSIDERAR_BAJO":"Considerar bajo","CONSIDERAR_ALTO":"Considerar alto","COMPRAR":"Comprar"}
     decision_text=text_map[decision_level]
@@ -200,7 +227,7 @@ def format_output(agg:Dict[str,Any], health:List[Dict[str,Any]], breed:Dict[str,
         "risk": risk,
         "posterior_bonus": agg.get("posterior_bonus",0),
         "global_conf": 0.9,
-        "notes": f"Evaluación pipeline real (v39s, {mode}). " + agg.get("notes",""),
+        "notes": f"Evaluación pipeline real (v39u, {mode}). path={decision_path}. " + agg.get("notes",""),
         "qc": {"visible_ratio": 0.86, "stability": "alta"},
         "rubric": agg["rubric"],
         "reasons": reasons,
