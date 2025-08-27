@@ -7,7 +7,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from pipeline_real import run_rubric_timeboxed, detect_health, run_breed_prompt, format_output
 
-APP_VERSION = "v39r-fullui-polish-breedAI"
+APP_VERSION = "v39s-strict-modes"
 
 app = FastAPI(title="GanadoBravo API", version=APP_VERSION)
 
@@ -55,7 +55,7 @@ async def _evaluate_internal(img_bytes: bytes, mode: str):
     t0 = time.time()
     agg = run_rubric_timeboxed(img_bytes, mode)
     health = detect_health(img_bytes, agg)
-    breed = run_breed_prompt(img_bytes)  # 100% AI (con fallback)
+    breed = run_breed_prompt(img_bytes)  # AI breed
     out = format_output(agg, health, breed, mode)
     out["debug"] = {"latency_ms": int((time.time()-t0)*1000), "ai_used": agg.get("notes","").startswith("ai_")}
     return out
