@@ -5,9 +5,10 @@ from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.cors import CORSMiddleware
 
-APP_VERSION = "v40e-defensive-eval"
+APP_VERSION = "v40f-error-surface"
 
 app = FastAPI(title="GanadoBravo API", version=APP_VERSION)
+LAST_ERROR = None
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
@@ -35,20 +36,27 @@ def diag():
         "ENABLE_BREED": os.getenv("ENABLE_BREED","1"),
         "OPENAI_MODEL": os.getenv("OPENAI_MODEL","gpt-4o-mini"),
         "BREED_MODEL": os.getenv("BREED_MODEL","gpt-4o-mini"),
-    }}
+    }, "last_error": LAST_ERROR}
 
 MAX_IMAGE_MB = int(os.getenv("MAX_IMAGE_MB","8"))
 WATCHDOG_SECONDS = int(os.getenv("WATCHDOG_SECONDS","20"))
 
 async def _evaluate_internal(img_bytes: bytes, mode: str):
-    from pipeline_real import run_rubric_timeboxed, detect_health, run_breed_prompt, format_output
-    t0 = time.time()
-    agg = run_rubric_timeboxed(img_bytes, mode)
-    health = detect_health(img_bytes, agg)
-    breed = run_breed_prompt(img_bytes)
-    out = format_output(agg, health, breed, mode)
-    out["debug"] = {"latency_ms": int((time.time()-t0)*1000)}
-    return out
+    global LAST_ERROR
+    try:
+        from pipeline_real import run_rubric_timeboxed, detect_health, run_breed_prompt, format_output
+        t0 = time.time()
+        agg = run_rubric_timeboxed(img_bytes, mode)
+        health = detect_health(img_bytes, agg)
+        breed = run_breed_prompt(img_bytes)
+        out = format_output(agg, health, breed, mode)
+        out["debug"] = {"latency_ms": int((time.time()-t0)*1000)}
+        LAST_ERROR = None
+        return out
+    except Exception as e:
+        import traceback
+        LAST_ERROR = {"error": str(e), "trace": traceback.format_exc()[-1200:]}
+        return {"status":"error","code":500,"message":"pipeline exception","detail":str(e)}
 
 @app.post("/evaluate")
 async def evaluate(file: UploadFile = File(...), mode: str = Form("levante")):
