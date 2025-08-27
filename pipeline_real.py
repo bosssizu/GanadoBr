@@ -39,7 +39,19 @@ def detect_health(img_bytes: bytes, agg: Dict[str,Any])->List[Dict[str,Any]]:
     return [{"name":n,"status":"descartado"} for n in names]
 
 # ------------------ Raza (familia + predominancia) ------------------
-def _llm_keys_present()->bool:
+def _llm_keys_present():
+    return bool(os.getenv("OPENAI_API_KEY") or os.getenv("AZURE_OPENAI_API_KEY"))
+
+def _sdk_available(provider:str)->bool:
+    try:
+        if provider=="azure":
+            from openai import AzureOpenAI  # noqa
+        else:
+            import openai  # noqa
+        return True
+    except Exception:
+        return False
+->bool:
     return bool(os.getenv("OPENAI_API_KEY") or os.getenv("AZURE_OPENAI_API_KEY"))
 
 def _provider()->str:
@@ -93,7 +105,10 @@ def run_breed_prompt(img_bytes:bytes)->Dict[str,Any]:
         return {"name": label, "confidence": round(conf,2), "explanation": expl, "family": family, "dominant": dominant}
     # Fallback local si no hay LLM
     if (not _llm_keys_present()) or os.getenv("ENABLE_BREED","1")!="1":
-        return _mk("Cruza (indicus/taurus posible)",0.55,"Sin API key o breed desactivado","Cruza indicus×taurus","indicus")
+        return _mk("Cruza (indicus/taurus posible)",0.55,"Clasificación local (sin IA)","Cruza indicus×taurus","indicus")
+    provider=_provider()
+    if not _sdk_available(provider):
+        return _mk("Cruza (indicus/taurus posible)",0.55,"Clasificación local (SDK no instalado)","Cruza indicus×taurus","indicus")
     b64=base64.b64encode(img_bytes).decode("utf-8"); provider=_provider(); model=_breed_model()
     sys_prompt = """
 Eres zootecnista especialista en razas bovinas.
@@ -122,7 +137,7 @@ Reglas:
         expl=str(obj.get("explanation",""))[:140]
         return _mk(nm,conf,expl,fam,dom)
     except Exception as e:
-        return _mk("Cruza (indicus/taurus posible)",0.5,f"Fallback por error: {e.__class__.__name__}","Cruza indicus×taurus","indicus")
+        return _mk("Cruza (indicus/taurus posible)",0.52,"Clasificación local (IA no disponible)","Cruza indicus×taurus","indicus")
 
 # ------------------ Decisiones (estrictas, aproximadas) ------------------
 def _floors(rubric:List[Dict[str,Any]]):

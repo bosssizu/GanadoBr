@@ -65,7 +65,7 @@ f('file').addEventListener('change',e=>{
   const img=document.createElement('img'); img.src=URL.createObjectURL(file);
   const pv=f('preview'); pv.innerHTML=''; pv.appendChild(img);
 });
-function color(v){ if(v>=7.2) return 'ok'; if(v>=6) return 'warn'; return 'bad'; }
+function color(v){ v=Number(v); if(v>=7.0) return 'ok'; if(v>=6.0) return 'warn'; return 'bad'; }
 f('eval').onclick=async ()=>{
   const file=f('file').files[0]; if(!file){alert('Carga una imagen'); return;}
   const fd=new FormData(); fd.append('file',file); fd.append('mode',f('mode').value);
@@ -87,9 +87,7 @@ f('eval').onclick=async ()=>{
   });
   const br=f('breed');
   if(data.breed){
-    const fam = data.breed.family? ` · ${data.breed.family}`: '';
-    const dom = data.breed.dominant && data.breed.dominant!=='ninguno'? ` · predomina ${data.breed.dominant}`: '';
-    br.textContent=`${data.breed.name||'—'} · conf=${(data.breed.confidence??0).toFixed(2)}${fam}${dom}${data.breed.explanation?(' — '+data.breed.explanation):''}`;
+    const nameTxt = (data.breed.name||'—'); const already = nameTxt.toLowerCase().includes('predomina'); const fam = data.breed.family? ` · ${data.breed.family}`: ''; const dom = (!already && data.breed.dominant && data.breed.dominant!=='ninguno')? ` · predomina ${data.breed.dominant}`: ''; br.textContent=`${nameTxt} · conf=${(data.breed.confidence??0).toFixed(2)}${fam}${dom}${data.breed.explanation?(' — '+data.breed.explanation):''}`;
   } else { br.textContent='—'; }
   const rs=f('reasons'); rs.innerHTML=''; (data.reasons||[]).forEach(x=>{const li=document.createElement('li'); li.textContent=x; rs.appendChild(li);});
 };
