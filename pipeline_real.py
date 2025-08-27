@@ -219,6 +219,6 @@ def format_output(agg: Dict[str,Any], health: List[Dict[str,Any]], breed: Dict[s
         "decision_text": {"NO_COMPRAR":"No comprar","CONSIDERAR_BAJO":"Considerar (bajo)","CONSIDERAR_ALTO":"Considerar alto","COMPRAR":"Comprar"}[decision],
         "global_score": score, "bcs": bcs, "risk": risk, "posterior_bonus": agg.get("posterior_bonus",0.0),
         "notes": "MVP v40l (pipeline fix, breed robust).",
-        "rubric": rubric, "health": health, "breed": breed,
+        "rubric": rubric, "health": health, "breed": breed, "breed_status": ("active" if breed and breed.get("explanation","").startswith("Clasificación local") is False else "fallback"),
         "reasons": ["Estructura general adecuada."]
     }

@@ -60,6 +60,11 @@ h2{margin-top:0} .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .gbtbl{width:100%;border-collapse:collapse;margin-top:6px}
 .gbtbl td,.gbtbl th{padding:.45rem .5rem;border-bottom:1px solid #eee}
 .gbtbl td:nth-child(2){text-align:right}
+
+.scorechip{font-weight:700;}
+/* legacy chips row hidden */
+.gb-hide{display:none !important}
+.preview img{max-width:100%;height:auto;border-radius:8px;object-fit:contain}
 </style></head>
 <body><div class="container">
 <div class="card">
@@ -244,6 +249,68 @@ function renderResult(data){
   if(t){ t.onclick = function(){ var jb=$id('jsonbox'); if(!jb) return; jb.style.display = (jb.style.display==='none'?'block':'none'); }; }
 
 })();</script>
+
+
+<script>
+(function(){
+  const fi = document.querySelector('input[type=file]');
+  const pv = document.querySelector('.preview, #preview, [data-preview]') || document.querySelector('.card:has(img)');
+  function showPreview(){
+    if(!fi || !pv || !fi.files || !fi.files[0]) return;
+    const url = URL.createObjectURL(fi.files[0]);
+    let img = pv.querySelector('img');
+    if(!img){ img = document.createElement('img'); pv.innerHTML=''; pv.appendChild(img); }
+    img.src = url;
+  }
+  if(fi){
+    fi.addEventListener('change', showPreview);
+  }
+  // try initial render in case the file input already has a file
+  setTimeout(showPreview, 50);
+})();
+</script>
+
+
+<script>
+(function(){
+  function to2(x){ if(x===undefined||x===null) return '—'; let n=Number(x); if(Number.isNaN(n)) return String(x); return (n%1===0)? n.toFixed(0): n.toFixed(2); }
+  function scoreColor(v){ // map 5.0->red, 7.5->green
+    if(typeof v!=='number') v = Number(v)||0;
+    const min=5.0, max=7.5; let t=(v-min)/(max-min); t=Math.max(0,Math.min(1,t));
+    const h = 10 + t*110; // 10=red, 120=green-ish
+    return 'hsl('+h+', 70%, ' + (35+ t*15) + '%)';
+  }
+  // Patch our render to colorize and hide legacy chips row
+  const old = window.__gb_after_fetch;
+  window.__gb_after_fetch = function(data,res){
+    try{
+      // colorize scores in our table
+      const rows = document.querySelectorAll('#gb_rubric tr');
+      rows.forEach(tr=>{
+        const td = tr.children[1];
+        if(!td) return;
+        const val = parseFloat(td.textContent);
+        td.style.color = scoreColor(val);
+        td.classList.add('scorechip');
+      });
+      // hide legacy chips row that repeats BCS/Puntaje/Riesgo con guiones
+      document.querySelectorAll('span,div').forEach(el=>{
+        const txt = (el.textContent||'').trim().toLowerCase();
+        if(txt.startsWith('puntaje global: —') || txt.startsWith('riesgo: —')){
+          const row = el.closest('div,section');
+          if(row) row.classList.add('gb-hide');
+        }
+      });
+      // show breed status subtle hint (only if fallback)
+      if(data && data.breed && data.breed.explanation && /Clasificación local/i.test(data.breed.explanation)){
+        const breedEl = document.getElementById('breed_line') || document.querySelector('h3 + div');
+        if(breedEl){ breedEl.title = 'IA de raza no disponible (usa fallback local). Configura OPENAI_API_KEY para activar.'; }
+      }
+    }catch(e){ console.error(e); }
+    if(typeof old==='function'){ try{ old(data,res);}catch(e){} }
+  }
+})();
+</script>
 
 </body></html>
 
