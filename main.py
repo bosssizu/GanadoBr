@@ -6,6 +6,7 @@ from openai import AsyncOpenAI
 import json
 import os as osmod
 import prompts
+import base64
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -14,13 +15,16 @@ client = AsyncOpenAI()
 
 async def run_prompt(prompt, input_data=None, image_bytes=None):
     if image_bytes:
+        b64 = base64.b64encode(image_bytes).decode("utf-8")
         resp = await client.chat.completions.create(
             model="gpt-4o",
             messages=[
                 {"role": "system", "content": prompt},
-                {"role": "user", "content": "Analyze this image."}
-            ],
-            files=[{"name": "animal.jpg", "bytes": image_bytes}]
+                {"role": "user", "content": [
+                    {"type": "text", "text": "Analyze this image."},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}}
+                ]}
+            ]
         )
     else:
         resp = await client.chat.completions.create(
