@@ -1,23 +1,71 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-  <title>GanadoBravo Evaluación</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GanadoBravo v3</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <h1>GanadoBravo v2 - Evaluación IA</h1>
-  <form id="uploadForm">
-    <input type="file" name="file" accept="image/*" required />
-    <button type="submit">Evaluar</button>
+<body class="bg-gray-50 min-h-screen flex flex-col items-center p-4">
+  <h1 class="text-2xl font-bold mb-4 text-center">🐂 GanadoBravo v3 - Evaluación IA</h1>
+  <form id="uploadForm" class="w-full max-w-md bg-white shadow-md rounded-xl p-4 space-y-3">
+    <input type="file" name="file" accept="image/*" required
+      class="block w-full text-sm text-gray-600 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none">
+    <button type="submit" class="w-full bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700">Evaluar</button>
   </form>
-  <pre id="output"></pre>
+
+  <div id="results" class="w-full max-w-2xl mt-6 space-y-4"></div>
 
   <script>
+    function scoreColor(score) {
+      if (score < 4) return "bg-red-500 text-white";
+      if (score < 6) return "bg-orange-400 text-white";
+      if (score < 8) return "bg-yellow-400 text-black";
+      return "bg-green-500 text-white";
+    }
+
     document.getElementById('uploadForm').onsubmit = async (e) => {
       e.preventDefault();
       const formData = new FormData(e.target);
       const res = await fetch('/api/evaluate', { method: 'POST', body: formData });
       const data = await res.json();
-      document.getElementById('output').textContent = JSON.stringify(data, null, 2);
+      const results = document.getElementById('results');
+
+      // Rubric
+      let rubricHTML = '<h2 class="text-xl font-bold">📊 Evaluación Morfológica</h2>';
+      rubricHTML += '<div class="overflow-x-auto"><table class="min-w-full bg-white shadow rounded-lg">';
+      rubricHTML += '<thead><tr class="bg-gray-200 text-left"><th class="p-2">Métrica</th><th class="p-2">Score</th><th class="p-2">Obs</th></tr></thead><tbody>';
+      data.rubric.forEach(r => {
+        rubricHTML += `<tr class="border-b">
+          <td class="p-2">${r.name}</td>
+          <td class="p-2"><span class="px-2 py-1 rounded-full text-sm font-bold ${scoreColor(r.score)}">${r.score}</span></td>
+          <td class="p-2">${r.obs}</td>
+        </tr>`;
+      });
+      rubricHTML += '</tbody></table></div>';
+
+      // Decision
+      let decisionHTML = '<h2 class="text-xl font-bold">✅ Decisión</h2>';
+      decisionHTML += `<div class="p-4 rounded-lg ${data.decision.decision_level === 'COMPRAR' ? 'bg-green-100 text-green-800' :
+                                               data.decision.decision_level.includes('ALTO') ? 'bg-yellow-100 text-yellow-800' :
+                                               data.decision.decision_level.includes('BAJO') ? 'bg-orange-100 text-orange-800' :
+                                               'bg-red-100 text-red-800'}">
+        ${data.decision.decision_text} (Global: ${data.decision.global_score.toFixed(2)})
+      </div>`;
+
+      // Health
+      let healthHTML = '<h2 class="text-xl font-bold">🩺 Salud</h2><ul class="list-disc ml-6">';
+      data.health.forEach(h => {
+        healthHTML += `<li>${h.name}: <span class="font-semibold">${h.status}</span></li>`;
+      });
+      healthHTML += '</ul>';
+
+      // Breed
+      let breedHTML = '<h2 class="text-xl font-bold">🐂 Raza</h2>';
+      breedHTML += `<p><strong>${data.breed.name}</strong> (confianza: ${(data.breed.confidence*100).toFixed(1)}%)</p>`;
+      breedHTML += `<p class="text-sm text-gray-600">${data.breed.explanation}</p>`;
+
+      results.innerHTML = rubricHTML + decisionHTML + healthHTML + breedHTML;
     }
   </script>
 </body>

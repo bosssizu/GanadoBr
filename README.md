@@ -1,4 +1,4 @@
-# GanadoBravo Fullstack v2 (IA real con GPT-4o)
+# GanadoBravo Fullstack v3 (IA + Frontend mobile con coloración)
 
 ## 🚀 Cómo correr localmente
 1. Crear entorno virtual e instalar dependencias:
@@ -19,6 +19,3 @@
 
 4. Abrir en navegador:
    [http://localhost:8000/static/index.html](http://localhost:8000/static/index.html)
-
-## 📦 Deploy en Render/Heroku
-- Usa este repo como fuente, asegúrate de setear `OPENAI_API_KEY` en variables de entorno.
