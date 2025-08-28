@@ -44,7 +44,7 @@
           return;
         }
 
-        // Mostrar categoría
+        // Categoría
         let catHTML = `<h2 class="text-lg font-semibold">📂 Categoría: ${data.category}</h2>`;
 
         // Rubric
@@ -60,13 +60,14 @@
         });
         rubricHTML += '</tbody></table></div>';
 
-        // Decision
+        // Decision + rationale
         let decisionHTML = '<h2 class="text-xl font-bold">✅ Decisión</h2>';
         decisionHTML += `<div class="p-4 rounded-lg ${data.decision.decision_level === 'COMPRAR' ? 'bg-green-100 text-green-800' :
                                                  data.decision.decision_level.includes('ALTO') ? 'bg-yellow-100 text-yellow-800' :
                                                  data.decision.decision_level.includes('BAJO') ? 'bg-orange-100 text-orange-800' :
                                                  'bg-red-100 text-red-800'}">
-          ${data.decision.decision_text} (Global: ${data.decision.global_score.toFixed(2)})
+          <div class="font-semibold">${data.decision.decision_text} (Global: ${Number(data.decision.global_score || 0).toFixed(2)})</div>
+          <div class="text-sm mt-1">${data.decision.rationale || ""}</div>
         </div>`;
 
         // Health
