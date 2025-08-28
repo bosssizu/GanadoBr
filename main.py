@@ -21,10 +21,11 @@ async def run_prompt(prompt, input_data=None, image_bytes=None):
             messages=[
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": [
-                    {"type": "text", "text": "Analyze this image."},
+                    {"type": "text", "text": "Analyze this image and return JSON."},
                     {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}}
                 ]}
-            ]
+            ],
+            response_format={"type": "json_object"}
         )
     else:
         resp = await client.chat.completions.create(
@@ -32,7 +33,8 @@ async def run_prompt(prompt, input_data=None, image_bytes=None):
             messages=[
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": json.dumps(input_data)}
-            ]
+            ],
+            response_format={"type": "json_object"}
         )
     return json.loads(resp.choices[0].message.content)
 
