@@ -1,6 +1,7 @@
 # prompts.py
-PROMPT_1 = """...(igual que antes)..."""
-PROMPT_2 = """...(igual que antes)..."""
-PROMPT_3 = """...(igual que antes)..."""
-PROMPT_4 = """...(igual que antes)..."""
-PROMPT_5 = """...(igual que antes)..."""
+# Aquí van los 5 prompts ocultos (idénticos a los que definimos antes)
+PROMPT_1 = """..."""
+PROMPT_2 = """..."""
+PROMPT_3 = """..."""
+PROMPT_4 = """..."""
+PROMPT_5 = """..."""

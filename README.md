@@ -1,4 +1,4 @@
-# GanadoBravo Fullstack v3.1 (IA + Frontend mobile con coloración)
+# GanadoBravo Fullstack IA (GPT-4o)
 
 ## 🚀 Cómo correr localmente
 1. Crear entorno virtual e instalar dependencias:
@@ -19,3 +19,9 @@
 
 4. Abrir en navegador:
    [http://localhost:8000/static/index.html](http://localhost:8000/static/index.html)
+
+## 🚀 Deploy en Railway
+1. Sube este repo a GitHub.
+2. Conecta el repo en Railway.
+3. Configura la variable de entorno `OPENAI_API_KEY` en Railway.
+4. Railway usará `Procfile` para iniciar el servidor.
