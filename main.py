@@ -1,5 +1,5 @@
 # main.py
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from openai import AsyncOpenAI
@@ -13,7 +13,10 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 client = AsyncOpenAI()
 
-async def run_prompt(prompt, input_data=None, image_bytes=None):
+async def run_prompt(prompt, category=None, input_data=None, image_bytes=None):
+    if category:
+        prompt = prompt.replace("{category}", category)
+
     if image_bytes:
         b64 = base64.b64encode(image_bytes).decode("utf-8")
         resp = await client.chat.completions.create(
@@ -43,18 +46,19 @@ async def root():
     return FileResponse(osmod.path.join("static", "index.html"))
 
 @app.post("/api/evaluate")
-async def evaluate(file: UploadFile = File(...)):
+async def evaluate(category: str = Form(...), file: UploadFile = File(...)):
     try:
         img = await file.read()
 
-        res1 = await run_prompt(prompts.PROMPT_1, None, img)
-        res2 = await run_prompt(prompts.PROMPT_2, res1)
-        res3 = await run_prompt(prompts.PROMPT_3, res2)
-        res4 = await run_prompt(prompts.PROMPT_4, None, img)
-        res5 = await run_prompt(prompts.PROMPT_5, None, img)
+        res1 = await run_prompt(prompts.PROMPT_1, category, None, img)
+        res2 = await run_prompt(prompts.PROMPT_2, category, res1)
+        res3 = await run_prompt(prompts.PROMPT_3, category, res2)
+        res4 = await run_prompt(prompts.PROMPT_4, category, None, img)
+        res5 = await run_prompt(prompts.PROMPT_5, category, None, img)
 
         return {
             "engine": "ai",
+            "category": category,
             "rubric": res2["rubric"],
             "decision": res3,
             "health": res4["health"],

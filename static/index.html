@@ -9,6 +9,13 @@
 <body class="bg-gray-50 min-h-screen flex flex-col items-center p-4">
   <h1 class="text-2xl font-bold mb-4 text-center">🐂 GanadoBravo - Evaluación IA</h1>
   <form id="uploadForm" class="w-full max-w-md bg-white shadow-md rounded-xl p-4 space-y-3">
+    <label class="block text-sm font-semibold">Selecciona categoría:</label>
+    <select name="category" required class="w-full border rounded-lg p-2">
+      <option value="vaca flaca">Vaca flaca</option>
+      <option value="levante">Levante</option>
+      <option value="engorde">Engorde</option>
+    </select>
+
     <input type="file" name="file" accept="image/*" required
       class="block w-full text-sm text-gray-600 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none">
     <button type="submit" class="w-full bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700">Evaluar</button>
@@ -36,6 +43,9 @@
           results.innerHTML = `<div class="bg-red-100 text-red-800 p-4 rounded">❌ Error: ${data.error}</div>`;
           return;
         }
+
+        // Mostrar categoría
+        let catHTML = `<h2 class="text-lg font-semibold">📂 Categoría: ${data.category}</h2>`;
 
         // Rubric
         let rubricHTML = '<h2 class="text-xl font-bold">📊 Evaluación Morfológica</h2>';
@@ -71,7 +81,7 @@
         breedHTML += `<p><strong>${data.breed.name}</strong> (confianza: ${(data.breed.confidence*100).toFixed(1)}%)</p>`;
         breedHTML += `<p class="text-sm text-gray-600">${data.breed.explanation}</p>`;
 
-        results.innerHTML = rubricHTML + decisionHTML + healthHTML + breedHTML;
+        results.innerHTML = catHTML + rubricHTML + decisionHTML + healthHTML + breedHTML;
       } catch (err) {
         document.getElementById('results').innerHTML = `<div class="bg-red-100 text-red-800 p-4 rounded">❌ Error de red/parseo: ${err}</div>`;
       }

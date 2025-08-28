@@ -39,10 +39,16 @@ Output the corrected JSON with the same structure.
 """
 
 PROMPT_3 = """You are a cattle purchasing decision system. 
+Category: {category}
 You will receive the validated JSON of 10 morphological metrics. 
-First, compute the average score (global_score). 
-Then decide the purchase category:
+Compute the average score (global_score). 
 
+Adjust decision rules based on category:
+- "vaca flaca": more tolerance to low muscle, focus on bone structure and recovery potential.
+- "levante": emphasize balance, growth potential, structure, moderate tolerance to current low BCS.
+- "engorde": emphasize muscling, depth, thoracic width, good condition required.
+
+Then decide the purchase category:
 - global_score < 6.2 → "NO_COMPRAR"
 - 6.2 ≤ global_score < 7.2 → "CONSIDERAR_BAJO"
 - 7.2 ≤ global_score < 8.2 → "CONSIDERAR_ALTO"

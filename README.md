@@ -1,4 +1,4 @@
-# GanadoBravo Fullstack IA (GPT-4o)
+# GanadoBravo Fullstack IA (GPT-4o) con Categorías
 
 ## 🚀 Cómo correr localmente
 1. Crear entorno virtual e instalar dependencias:
