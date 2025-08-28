@@ -1,21 +1,24 @@
+# GanadoBravo Fullstack v2 (IA real con GPT-4o)
 
-# GanadoBravo — Fullstack (v1)
+## 🚀 Cómo correr localmente
+1. Crear entorno virtual e instalar dependencias:
+   ```bash
+   python -m venv .venv && source .venv/bin/activate
+   pip install -r requirements.txt
+   ```
 
-Stack mínimo **FastAPI + Frontend**.
+2. Definir variable de entorno con tu API key de OpenAI:
+   ```bash
+   export OPENAI_API_KEY="sk-xxxxx"
+   ```
 
-## Endpoints
-- `GET /` -> UI
-- `POST /evaluate` y `POST /api/evaluate` (alias) -> body: `file` (imagen), `mode` (`levante`,`vaca_flaca`,`engorde`)
-- `GET /healthz` y `GET /api/diag`
+3. Correr el servidor:
+   ```bash
+   uvicorn main:app --reload
+   ```
 
-## Run
-```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn main:app --reload
-# abre http://localhost:8000
-```
+4. Abrir en navegador:
+   [http://localhost:8000/static/index.html](http://localhost:8000/static/index.html)
 
-## IA
-La UI muestra **IA activa** si `ENABLE_AI=1` o `OPENAI_API_KEY` está definido.
-El scoring es determinista local; puedes reemplazar `_evaluate_bytes` por tu pipeline real.
+## 📦 Deploy en Render/Heroku
+- Usa este repo como fuente, asegúrate de setear `OPENAI_API_KEY` en variables de entorno.

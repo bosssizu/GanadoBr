@@ -1,136 +1,24 @@
-<!doctype html>
-<html lang="es">
+<!DOCTYPE html>
+<html>
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>GanadoBravo — Evaluación (fullstack v1)</title>
-  <style>
-    :root{ --bg:#0b1220; --card:#0f172a; --muted:#94a3b8; --text:#e2e8f0; --ok:#16a34a; --bad:#dc2626; }
-    *{box-sizing:border-box} body{margin:0;background:#0b1220;color:var(--text);
-      font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-    header{padding:18px 22px;border-bottom:1px solid #0f2540;background:#0b1220;position:sticky;top:0;z-index:10}
-    .wrap{display:grid;grid-template-columns:340px 1fr; gap:18px; padding:18px; max-width:1300px;margin:0 auto}
-    .card{background:#0f172a;border:1px solid #15344e;border-radius:14px;box-shadow:0 4px 24px rgba(0,0,0,.35)}
-    .card .head{padding:14px 16px;border-bottom:1px dashed #15344e;color:#a1b3c5;font-weight:700}
-    .card .body{padding:14px 16px}
-    .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-    .btn{background:#11263b;border:1px solid #15344e;color:#dbeafe;padding:9px 14px;border-radius:10px;cursor:pointer}
-    .btn:disabled{opacity:.6;cursor:not-allowed}
-    .preview{width:100%;aspect-ratio:1/1;border:1px dashed #214561;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#0a1a29}
-    .preview img{max-width:100%;height:100%;object-fit:cover}
-    .badge{font-size:11px;padding:4px 8px;border-radius:999px;display:inline-flex;align-items:center;gap:6px}
-    .b-ai{background:#0b3b24;color:#b4f2cf;border:1px solid #166a42} .b-fb{background:#431515;color:#fecaca;border:1px solid #7f1d1d}
-    .decision{font-size:28px;font-weight:900;letter-spacing:.2px}
-    .kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr)); gap:10px; margin-top:10px}
-    .kpi{background:#0f1828;border:1px solid #15344e;border-radius:12px;padding:10px 12px}
-    .kpi .lab{font-size:12px;color:#94a3b8} .kpi .val{font-size:18px;font-weight:800}
-    table{width:100%;border-collapse:collapse} th,td{padding:10px;border-bottom:1px solid #0f2540;vertical-align:top}
-    th{color:#93a4b6;font-weight:700;text-align:left} .score{font-weight:700;text-align:right}
-    .score.ok{color:#22c55e} .score.mid{color:#a3e635} .score.warn{color:#f59e0b} .score.bad{color:#ef4444}
-    ul.clean{list-style:none;padding-left:18px} .small{font-size:12px} .muted{color:#94a3b8}
-    .alert{padding:8px 10px;border-radius:10px;margin-bottom:10px;display:none}
-    .alert.on{display:block} .alert.bad{background:#3b0d0d;color:#fecaca;border:1px solid #7f1d1d}
-  </style>
+  <title>GanadoBravo Evaluación</title>
 </head>
 <body>
-  <header><h1>GanadoBravo — Evaluación <span class="badge b-fb" id="engine" style="display:none"></span></h1></header>
-  <div class="wrap">
-    <div class="card">
-      <div class="head">Entrada</div>
-      <div class="body">
-        <div id="err" class="alert bad"></div>
-        <div class="row" style="margin-bottom:10px">
-          <input id="file" type="file" accept="image/*">
-          <select id="mode">
-            <option value="levante" selected>Levante (default)</option>
-            <option value="vaca_flaca">Vaca flaca</option>
-            <option value="engorde">Engorde</option>
-          </select>
-          <button id="go" class="btn">Evaluar</button>
-        </div>
-        <div class="preview" id="preview"><span class="muted">vista previa</span></div>
-        <div style="margin-top:10px" class="small muted">
-          <a href="/api/diag" target="_blank" class="muted">/api/diag</a> · <a href="/healthz" target="_blank" class="muted">/healthz</a>
-        </div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="head">Resultado</div>
-      <div class="body">
-        <div class="decision" id="decision">—</div>
-        <div class="kpi-grid">
-          <div class="kpi"><div class="lab">BCS</div><div class="val" id="bcs">—</div></div>
-          <div class="kpi"><div class="lab">Puntaje global</div><div class="val" id="gscore">—</div></div>
-          <div class="kpi"><div class="lab">Riesgo</div><div class="val" id="risk">—</div></div>
-          <div class="kpi"><div class="lab">Bono posterior</div><div class="val" id="bonus">0.00</div></div>
-        </div>
-        <div style="margin-top:18px">
-          <div class="muted" style="margin-bottom:6px">Rúbrica detallada <span id="rubric_count" class="small"></span></div>
-          <table><thead>
-            <tr><th style="width:34%">Métrica</th><th style="width:10%;text-align:right">Puntaje</th><th>Observaciones</th></tr>
-          </thead><tbody id="rubric_tbody"></tbody></table>
-        </div>
-        <div style="margin-top:14px">
-          <div class="muted" style="margin-bottom:6px">Salud</div>
-          <ul id="health" class="clean"></ul>
-        </div>
-        <div style="margin-top:14px">
-          <div class="muted" style="margin-bottom:6px">Raza</div>
-          <div id="breed_box" class="small"></div>
-        </div>
-        <div style="margin-top:14px">
-          <div class="muted" style="margin-bottom:6px">Notas y razones</div>
-          <ul id="reasons" class="clean"></ul>
-        </div>
-      </div>
-    </div>
-  </div>
-<script>
-const METRICS=["Conformación","Línea dorsal","Angulación costillar","Profundidad de pecho","Aplomos","Lomo","Grupo/muscling posterior","Balance anterior-posterior","Ancho torácico","Inserción de cola"];
-function colorClass(v){if(v==null||isNaN(+v))return"";const n=+v;if(n>=7.5)return"ok";if(n>=6.5)return"mid";if(n>=5.5)return"warn";return"bad";}
-function sortRubric(r){const map=new Map(METRICS.map((k,i)=>[k,i]));return(r||[]).filter(x=>x&&x.name&&!/^bcs$/i.test(x.name)&&!/^riesgo$/i.test(x.name)).sort((a,b)=>(map.get(a.name)??99)-(map.get(b.name)??99));}
-function render(d){
-  const eng=d.engine||(d.breed_status==="active"?"ai":"fallback"); const b=document.getElementById("engine");
-  b.style.display="inline-flex"; b.className="badge "+(eng==="ai"?"b-ai":"b-fb"); b.textContent=eng==="ai"?"IA activa":"Motor local (fallback)";
-  document.getElementById("decision").textContent=d.decision_text||d.decision_level||"—";
-  document.getElementById("bcs").textContent=d.bcs!=null?(+d.bcs).toFixed(2):"—";
-  document.getElementById("gscore").textContent=d.global_score!=null?(+d.global_score).toFixed(2):"—";
-  document.getElementById("risk").textContent=d.risk!=null?(+d.risk).toFixed(2):"—";
-  if(d.posterior_bonus!=null)document.getElementById("bonus").textContent=(+d.posterior_bonus).toFixed(2);
-  const tbody=document.getElementById("rubric_tbody"); tbody.innerHTML=""; const rub=sortRubric(d.rubric); document.getElementById("rubric_count").textContent=`(métricas: ${rub.length}/10)`;
-  rub.forEach(r=>{const tr=document.createElement("tr"); const td1=document.createElement("td"); td1.textContent=r.name||"";
-    const td2=document.createElement("td"); td2.className="score "+colorClass(r.score); td2.textContent=r.score!=null?(+r.score).toFixed(2):"—"; td2.style.textAlign="right";
-    const td3=document.createElement("td"); td3.textContent=r.obs||""; tr.append(td1,td2,td3); tbody.appendChild(tr);});
-  const hl=document.getElementById("health"); hl.innerHTML=""; (Array.isArray(d.health)?d.health:[]).forEach(h=>{const li=document.createElement("li");
-    const ok=(h.status||"").toLowerCase().includes("descart"); li.textContent=`${h.name} = ${ok?"Descartado":"Sospecha"}`; li.style.color=ok?"#22c55e":"#ef4444"; hl.appendChild(li);});
-  const bb=document.getElementById("breed_box"); const br=d.breed||{}; bb.innerHTML=br.name?`<strong>${br.name}</strong> · conf=${(br.confidence??"—")}<br><span class="muted">${br.explanation||""}</span>`:"<span class='muted'>Clasificación no disponible.</span>";
-  const R=Array.isArray(d.reasons)?d.reasons:[]; const rl=document.getElementById("reasons"); rl.innerHTML=""; R.forEach(x=>{const li=document.createElement("li"); li.textContent=x; rl.appendChild(li);});
-}
-function showErr(msg){const e=document.getElementById('err'); e.textContent=msg; e.className='alert bad on';}
-async function postEval(url,file,mode){
-  const fd=new FormData(); fd.append('file',file); fd.append('mode',mode||'levante');
-  const r=await fetch(url,{method:'POST',body:fd}); if(!r.ok){const t=await r.text().catch(()=> ''); throw new Error(`HTTP ${r.status} ${t}`);} return await r.json();
-}
-async function evaluate(file,mode){
-  try{ return await postEval('/evaluate',file,mode); }
-  catch(e1){ if(/404/.test(e1.message)||/Not Found/i.test(e1.message)){ return await postEval('/api/evaluate',file,mode); } throw e1; }
-}
-document.getElementById('file').addEventListener('change',e=>{
-  const f=e.target.files?.[0]; const box=document.getElementById('preview');
-  if(!f){ box.innerHTML='<span class="muted">vista previa</span>'; return; }
-  const img=document.createElement('img'); img.alt='preview'; box.innerHTML=''; box.appendChild(img);
-  const url=URL.createObjectURL(f); img.onload=()=>URL.revokeObjectURL(url); img.src=url;
-});
-document.getElementById('go').addEventListener('click', async ()=>{
-  const f=document.getElementById('file').files?.[0]; const mode=document.getElementById('mode').value;
-  if(!f){ showErr('Selecciona una imagen.'); return; }
-  try{
-    const data = await evaluate(f, mode);
-    render(data.result||data);
-  }catch(err){
-    console.error(err); showErr(err.message);
-  }
-});
-</script>
+  <h1>GanadoBravo v2 - Evaluación IA</h1>
+  <form id="uploadForm">
+    <input type="file" name="file" accept="image/*" required />
+    <button type="submit">Evaluar</button>
+  </form>
+  <pre id="output"></pre>
+
+  <script>
+    document.getElementById('uploadForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const res = await fetch('/api/evaluate', { method: 'POST', body: formData });
+      const data = await res.json();
+      document.getElementById('output').textContent = JSON.stringify(data, null, 2);
+    }
+  </script>
 </body>
 </html>
