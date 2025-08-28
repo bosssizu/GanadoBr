@@ -1,8 +1,10 @@
 # main.py
 from fastapi import FastAPI, File, UploadFile
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from openai import AsyncOpenAI
 import json
+import os as osmod
 import prompts
 
 app = FastAPI()
@@ -29,6 +31,10 @@ async def run_prompt(prompt, input_data=None, image_bytes=None):
             ]
         )
     return json.loads(resp.choices[0].message.content)
+
+@app.get("/")
+async def root():
+    return FileResponse(osmod.path.join("static", "index.html"))
 
 @app.post("/api/evaluate")
 async def evaluate(file: UploadFile = File(...)):

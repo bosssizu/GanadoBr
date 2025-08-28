@@ -18,7 +18,7 @@
    ```
 
 4. Abrir en navegador:
-   [http://localhost:8000/static/index.html](http://localhost:8000/static/index.html)
+   [http://localhost:8000/](http://localhost:8000/)
 
 ## 🚀 Deploy en Railway
 1. Sube este repo a GitHub.
