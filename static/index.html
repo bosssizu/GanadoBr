@@ -42,7 +42,6 @@
       e.preventDefault();
       const formData = new FormData(e.target);
 
-      // Loading state
       submitBtn.disabled = true;
       btnText.textContent = 'Evaluando...';
       spinner.classList.remove('hidden');
@@ -54,7 +53,6 @@
         const res = await fetch('/api/evaluate', { method: 'POST', body: formData });
         const data = await res.json();
 
-        // Reset loading
         submitBtn.disabled = false;
         btnText.textContent = 'Evaluar';
         spinner.classList.add('hidden');
@@ -64,19 +62,19 @@
           return;
         }
 
-        // 👉 ORDEN: Decisión → Morfología → Salud → Raza
-
-        // Decisión + rationale
+        // Decisión (con puntajes)
         let decisionHTML = '<h2 class="text-xl font-bold">✅ Decisión</h2>';
-        decisionHTML += `<div class="p-4 rounded-lg ${data.decision.decision_level === 'COMPRAR' ? 'bg-green-100 text-green-800' :
-                                                 data.decision.decision_level.includes('ALTO') ? 'bg-yellow-100 text-yellow-800' :
-                                                 data.decision.decision_level.includes('BAJO') ? 'bg-orange-100 text-orange-800' :
+        const d = data.decision;
+        decisionHTML += `<div class="p-4 rounded-lg ${d.decision_level === 'COMPRAR' ? 'bg-green-100 text-green-800' :
+                                                 d.decision_level.includes('ALTO') ? 'bg-yellow-100 text-yellow-800' :
+                                                 d.decision_level.includes('BAJO') ? 'bg-orange-100 text-orange-800' :
                                                  'bg-red-100 text-red-800'}">
-          <div class="font-semibold">${data.decision.decision_text} (Global: ${Number(data.decision.global_score || 0).toFixed(2)}) — <span class="italic">Categoría: ${data.category}</span></div>
-          <div class="text-sm mt-1">${data.decision.rationale || ""}</div>
+          <div class="font-semibold">${d.decision_text} — <span class="italic">Categoría: ${data.category}</span></div>
+          <div class="text-sm mt-1">${d.rationale || ""}</div>
+          <div class="text-xs mt-2 opacity-80">Global: ${Number(d.global_score || 0).toFixed(2)} | Ponderado: ${Number(d.weighted_score || d.global_score || 0).toFixed(2)} | Band: ${Number(d.band_score || d.weighted_score || d.global_score || 0).toFixed(2)}</div>
         </div>`;
 
-        // Rubric (morfología)
+        // Morfología
         let rubricHTML = '<h2 class="text-xl font-bold">📊 Evaluación Morfológica</h2>';
         rubricHTML += '<div class="overflow-x-auto"><table class="min-w-full bg-white shadow rounded-lg">';
         rubricHTML += '<thead><tr class="bg-gray-200 text-left"><th class="p-2">Métrica</th><th class="p-2">Score</th><th class="p-2">Obs</th></tr></thead><tbody>';
