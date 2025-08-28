@@ -31,6 +31,11 @@
       const data = await res.json();
       const results = document.getElementById('results');
 
+      if (data.error) {
+        results.innerHTML = `<div class="bg-red-100 text-red-800 p-4 rounded">❌ Error: ${data.error}</div>`;
+        return;
+      }
+
       // Rubric
       let rubricHTML = '<h2 class="text-xl font-bold">📊 Evaluación Morfológica</h2>';
       rubricHTML += '<div class="overflow-x-auto"><table class="min-w-full bg-white shadow rounded-lg">';
