@@ -1,6 +1,6 @@
 # prompts.py
 
-# PROMPT_1 y PROMPT_2 los mantenemos de v3.8 (BCS incluido y validador de consistencia).
+# PROMPT_1: incluye BCS y 11 métricas
 PROMPT_1 = """Eres un experto en evaluación morfológica bovina.
 Dados uno o varios fotogramas de un bovino, evalúalo ESTRICTAMENTE en las siguientes MÉTRICAS (1.0–10.0 con decimales) e incluye justificación breve por métrica. 
 Incluye explícitamente la **Condición corporal (BCS)** estimada a partir de la imagen, recordando que es una aproximación visual.
@@ -36,6 +36,7 @@ Devuelve SOLO JSON con este formato:
 }
 """
 
+# PROMPT_2: validador
 PROMPT_2 = """Eres un validador de consistencia de métricas morfológicas bovinas.
 Recibirás un JSON con N métricas (rubric). Verifica coherencia interna y corrige suavemente si hace falta (máx ±0.7 por métrica).
 
@@ -49,7 +50,7 @@ Reglas mínimas:
 Devuelve el mismo objeto, SOLO JSON, con la array "rubric" corregida si corresponde.
 """
 
-# ✅ PROMPT_3 con pesos por categoría y offsets claros
+# PROMPT_3: decisión con pesos y offsets
 PROMPT_3 = """Eres un sistema de decisión de compra de ganado.
 Categoría de negocio: {category}
 Entrada: un objeto validado con la array "rubric" de N métricas (1–10).
@@ -101,9 +102,9 @@ Entrada: un objeto validado con la array "rubric" de N métricas (1–10).
      }
 
 3) Aplica un OFFSET por categoría para el cálculo de bandas (band_score = weighted_score + offset):
-   - "vaca flaca": offset = -0.6   (más permisivo)
-   - "levante":     offset = -0.2
-   - "engorde":     offset = +0.3   (más exigente)
+   - "vaca flaca": offset = +0.8   (más permisivo)
+   - "levante":     offset = +0.4
+   - "engorde":     offset = -0.3   (más exigente)
 
 4) Determina la categoría por band_score (banding base):
    - band_score < 6.2 → "NO_COMPRAR"
@@ -112,9 +113,9 @@ Entrada: un objeto validado con la array "rubric" de N métricas (1–10).
    - ≥ 8.2 → "COMPRAR"
 
 5) Ajuste discrecional (máx ±1 nivel) según señales fuertes:
-   - "vaca flaca": si promedio de estructura (aplomos, balance, línea dorsal) ≥ 6.8 y BCS ≤ 5.0 → subir 1 nivel.
-   - "levante": si promedio de (aplomos, balance, línea dorsal, grupo) ≥ 7.0 → subir 1 nivel.
-   - "engorde": si promedio de (grupo, profundidad, ancho) ≥ 7.2 y BCS ≥ 6.5 → subir 1 nivel; si BCS < 5.5 → bajar 1 nivel.
+   - "vaca flaca": si promedio de estructura (aplomos, balance, línea dorsal) ≥ 6.8 y BCS ≤ 5.5 → subir 1 nivel.
+   - "levante": si promedio de (aplomos, balance, línea dorsal, grupo / muscling posterior) ≥ 7.0 y BCS ≥ 6.0 → asegurar al menos "CONSIDERAR_ALTO".
+   - "engorde": si promedio de (grupo / muscling posterior, profundidad de pecho, ancho torácico) ≥ 7.2 y BCS ≥ 6.5 → subir 1 nivel; si BCS < 5.5 → bajar 1 nivel.
 
 6) Devuelve SIEMPRE en español y con este JSON EXACTO:
 {
@@ -127,6 +128,7 @@ Entrada: un objeto validado con la array "rubric" de N métricas (1–10).
 }
 """
 
+# PROMPT_4 y PROMPT_5 como antes (en español)
 PROMPT_4 = """Eres un asistente de tamizaje veterinario visual.
 Analiza signos visibles de enfermedades/lesiones y clasifica cada ítem.
 
