@@ -1,10 +1,13 @@
 # main.py
 from fastapi import FastAPI, File, UploadFile
+from fastapi.staticfiles import StaticFiles
 from openai import AsyncOpenAI
 import json
 import prompts
 
 app = FastAPI()
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 client = AsyncOpenAI()
 
 async def run_prompt(prompt, input_data=None, image_bytes=None):

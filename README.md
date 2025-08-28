@@ -1,4 +1,4 @@
-# GanadoBravo Fullstack v3 (IA + Frontend mobile con coloración)
+# GanadoBravo Fullstack v3.1 (IA + Frontend mobile con coloración)
 
 ## 🚀 Cómo correr localmente
 1. Crear entorno virtual e instalar dependencias:
