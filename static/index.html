@@ -18,7 +18,10 @@
 
     <input type="file" name="file" accept="image/*" required
       class="block w-full text-sm text-gray-600 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none">
-    <button type="submit" class="w-full bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700">Evaluar</button>
+    <button id="submitBtn" type="submit" class="w-full bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700 flex items-center justify-center gap-2">
+      <span id="btnText">Evaluar</span>
+      <span id="spinner" class="hidden animate-spin border-2 border-white border-t-transparent rounded-full w-4 h-4"></span>
+    </button>
   </form>
 
   <div id="results" class="w-full max-w-2xl mt-6 space-y-4"></div>
@@ -31,23 +34,49 @@
       return "bg-green-500 text-white";
     }
 
+    const submitBtn = document.getElementById('submitBtn');
+    const btnText = document.getElementById('btnText');
+    const spinner = document.getElementById('spinner');
+
     document.getElementById('uploadForm').onsubmit = async (e) => {
       e.preventDefault();
       const formData = new FormData(e.target);
+
+      // Loading state
+      submitBtn.disabled = true;
+      btnText.textContent = 'Evaluando...';
+      spinner.classList.remove('hidden');
+
+      const results = document.getElementById('results');
+      results.innerHTML = '<div class="bg-white shadow rounded-lg p-4 text-sm text-gray-600">⏳ Procesando evaluación con IA...</div>';
+
       try {
         const res = await fetch('/api/evaluate', { method: 'POST', body: formData });
         const data = await res.json();
-        const results = document.getElementById('results');
+
+        // Reset loading
+        submitBtn.disabled = false;
+        btnText.textContent = 'Evaluar';
+        spinner.classList.add('hidden');
 
         if (data.error) {
           results.innerHTML = `<div class="bg-red-100 text-red-800 p-4 rounded">❌ Error: ${data.error}</div>`;
           return;
         }
 
-        // Categoría
-        let catHTML = `<h2 class="text-lg font-semibold">📂 Categoría: ${data.category}</h2>`;
+        // 👉 ORDEN: Decisión → Morfología → Salud → Raza
 
-        // Rubric
+        // Decisión + rationale
+        let decisionHTML = '<h2 class="text-xl font-bold">✅ Decisión</h2>';
+        decisionHTML += `<div class="p-4 rounded-lg ${data.decision.decision_level === 'COMPRAR' ? 'bg-green-100 text-green-800' :
+                                                 data.decision.decision_level.includes('ALTO') ? 'bg-yellow-100 text-yellow-800' :
+                                                 data.decision.decision_level.includes('BAJO') ? 'bg-orange-100 text-orange-800' :
+                                                 'bg-red-100 text-red-800'}">
+          <div class="font-semibold">${data.decision.decision_text} (Global: ${Number(data.decision.global_score || 0).toFixed(2)}) — <span class="italic">Categoría: ${data.category}</span></div>
+          <div class="text-sm mt-1">${data.decision.rationale || ""}</div>
+        </div>`;
+
+        // Rubric (morfología)
         let rubricHTML = '<h2 class="text-xl font-bold">📊 Evaluación Morfológica</h2>';
         rubricHTML += '<div class="overflow-x-auto"><table class="min-w-full bg-white shadow rounded-lg">';
         rubricHTML += '<thead><tr class="bg-gray-200 text-left"><th class="p-2">Métrica</th><th class="p-2">Score</th><th class="p-2">Obs</th></tr></thead><tbody>';
@@ -60,30 +89,23 @@
         });
         rubricHTML += '</tbody></table></div>';
 
-        // Decision + rationale
-        let decisionHTML = '<h2 class="text-xl font-bold">✅ Decisión</h2>';
-        decisionHTML += `<div class="p-4 rounded-lg ${data.decision.decision_level === 'COMPRAR' ? 'bg-green-100 text-green-800' :
-                                                 data.decision.decision_level.includes('ALTO') ? 'bg-yellow-100 text-yellow-800' :
-                                                 data.decision.decision_level.includes('BAJO') ? 'bg-orange-100 text-orange-800' :
-                                                 'bg-red-100 text-red-800'}">
-          <div class="font-semibold">${data.decision.decision_text} (Global: ${Number(data.decision.global_score || 0).toFixed(2)})</div>
-          <div class="text-sm mt-1">${data.decision.rationale || ""}</div>
-        </div>`;
-
-        // Health
+        // Salud
         let healthHTML = '<h2 class="text-xl font-bold">🩺 Salud</h2><ul class="list-disc ml-6">';
         data.health.forEach(h => {
           healthHTML += `<li>${h.name}: <span class="font-semibold">${h.status}</span></li>`;
         });
         healthHTML += '</ul>';
 
-        // Breed
+        // Raza
         let breedHTML = '<h2 class="text-xl font-bold">🐂 Raza</h2>';
         breedHTML += `<p><strong>${data.breed.name}</strong> (confianza: ${(data.breed.confidence*100).toFixed(1)}%)</p>`;
         breedHTML += `<p class="text-sm text-gray-600">${data.breed.explanation}</p>`;
 
-        results.innerHTML = catHTML + rubricHTML + decisionHTML + healthHTML + breedHTML;
+        results.innerHTML = decisionHTML + rubricHTML + healthHTML + breedHTML;
       } catch (err) {
+        submitBtn.disabled = false;
+        btnText.textContent = 'Evaluar';
+        spinner.classList.add('hidden');
         document.getElementById('results').innerHTML = `<div class="bg-red-100 text-red-800 p-4 rounded">❌ Error de red/parseo: ${err}</div>`;
       }
     }
